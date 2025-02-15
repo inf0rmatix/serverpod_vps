@@ -30,8 +30,7 @@ services:
       timeout: 5s
       retries: 5
     restart: on-failure
-    # TODO: use latest version of postgres 16
-    image: postgres:14.1
+    image: postgres:latest
     labels:
       - "traefik.enable=false" # We typically don't expose databases externally via HTTP
     ports:
