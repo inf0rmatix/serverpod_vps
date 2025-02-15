@@ -57,7 +57,7 @@ jobs:
             GITHUB_PAT=${{ secrets.PAT_GITHUB }}
             GITHUB_USER=${{ secrets.PAT_USER_GITHUB }}
           context: ./projectname_server
-          file: ./projectname_server/Dockerfile
+          file: ./projectname_server/Dockerfile.prod
           push: true
           # TODO This same value is used in docker-compose.production.yaml too,
           #  maybe it should be an environment variable
