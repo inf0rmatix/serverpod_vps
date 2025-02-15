@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   traefik:
     restart: on-failure
@@ -8,8 +10,8 @@ services:
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      # TODO Change this to your email address, Let's Encrypt will use this to notify you about certificate expiration
-      - "--certificatesresolvers.myresolver.acme.email=damian_and_paul@examplepod.com"
+      # TODO: Change this to your actual email address for Let's Encrypt notifications.
+      - "--certificatesresolvers.myresolver.acme.email=you@example.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
@@ -32,14 +34,11 @@ services:
     restart: on-failure
     image: postgres:latest
     labels:
-      - "traefik.enable=false" # We typically don't expose databases externally via HTTP
+      - "traefik.enable=false" # We typically don't expose databases via HTTP.
     ports:
-      # TODO: Would it be possible to put this in a different network from the
-      #  80 and 443 ports reducing the risk of accidentally exposing this port?
-      # You should have a firewall in place that DOES NOT allow
-      # access from the internet on this port. On the host machine, we need
-      # access to it.
-      - "5432:5432"
+      # Bind the Postgres port to localhost only so it isn’t exposed externally,
+      # while still allowing connections from the host machine.
+      - "127.0.0.1:5432:5432"
     environment:
       - POSTGRES_USER
       - POSTGRES_DB
@@ -112,12 +111,9 @@ services:
       - serverpod-network
 
 networks:
-  # explicitly setting up a docker virutal network for the serverpod services
-  # by default, a network is implicitly created for each compose file
-  # this makes it easier to connect to any other docker containers,
-  # i.e. when using a separate docker compose to setup grafana, prometheus, etc.
   serverpod-network:
     name: serverpod-network
     driver: bridge
+
 volumes:
   projectname_data:
