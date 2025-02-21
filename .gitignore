@@ -23,4 +23,9 @@ coverage/
 
 # Temporary files
 .temp/
+.pub/
+tmp/
+
+# Temporary files
+.temp/
 .pub/ 
