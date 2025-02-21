@@ -29,6 +29,7 @@ class TemplateGenerator {
 
       if (results['help'] as bool) {
         _printUsage();
+
         return;
       }
 
