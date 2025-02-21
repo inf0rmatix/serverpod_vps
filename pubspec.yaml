@@ -29,3 +29,10 @@ platforms:
   linux:
   macos:
   windows:
+
+assets:
+  - assets/default.env
+  - assets/templates/serverpod_templates/
+  - assets/templates/serverpod_templates/github/workflows/
+  - assets/templates/serverpod_templates/projectname_server/
+  - assets/templates/serverpod_templates/projectname_server_upgrade/

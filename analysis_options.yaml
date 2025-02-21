@@ -3,6 +3,8 @@ include: package:lints/recommended.yaml
 linter:
   rules:
     - require_trailing_commas
+    - always_declare_return_types
+    - avoid_redundant_argument_values
 
 analyzer:
   language:

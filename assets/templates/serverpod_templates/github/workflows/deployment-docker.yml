@@ -16,7 +16,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   # maybe use GITHUB_REPOSITORY_OWNER variable instead of hardcoding the
-  # organization. Maybe this part "../../../../../../templates/serverpod_templates/github/workflows"could be included in the make file and asked
+  # organization. Maybe this part "../../../../../templates/serverpod_templates/github/workflows"could be included in the make file and asked
   # the user what they want to use.
   # TODO Update with your GitHub username or organization
   GHCR_ORG: "<ORGANIZATION>"

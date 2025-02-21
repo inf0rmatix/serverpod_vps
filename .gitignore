@@ -26,6 +26,9 @@ coverage/
 .pub/
 tmp/
 
+# Environment variables
+.env
+
 # Temporary files
 .temp/
 .pub/ 

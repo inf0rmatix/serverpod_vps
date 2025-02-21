@@ -33,13 +33,40 @@ class TemplateGenerator {
         return;
       }
 
+      logger.info('');
+      logger.info(
+        backgroundBlue.wrap(
+          white.wrap(
+            '\t========================================================\t',
+          ),
+        ),
+      );
+      logger.info(
+        backgroundBlue.wrap(
+          white.wrap('\t\t  🚀 Serverpod VPS Deployment Generator\t\t\t'),
+        ),
+      );
+      logger.info(
+        backgroundBlue.wrap(
+          white.wrap(
+            '\t========================================================\t',
+          ),
+        ),
+      );
+      logger.info('');
+
       // Use current directory by default
       if (!await checkDirectoryStructure()) {
         exit(1);
       }
 
-      logger.info('Project directory: $projectDirectoryPath');
-      logger.info('Project directory name: $projectDirectoryName');
+      logger.info(
+        'Project directory: ${styleBold.wrap(projectDirectoryPath)}',
+      );
+
+      logger.info(
+        'Project directory name: ${styleBold.wrap(projectDirectoryName)}',
+      );
 
       await _generateTemplate();
     } catch (e) {
@@ -83,6 +110,7 @@ class TemplateGenerator {
       logger.info('  $projectDirectoryName/');
       logger.info('  ├── ${projectDirectoryName}_server/');
       logger.info('  └── ${projectDirectoryName}_client/');
+
       return false;
     }
 
@@ -92,10 +120,12 @@ class TemplateGenerator {
       logger.info('  $projectDirectoryName/');
       logger.info('  ├── ${projectDirectoryName}_server/');
       logger.info('  └── ${projectDirectoryName}_client/');
+
       return false;
     }
 
     logger.success('Directory structure is valid');
+
     return true;
   }
 
@@ -106,8 +136,72 @@ class TemplateGenerator {
     final progress = logger.progress('Generating template');
 
     try {
-      // TODO: Implement template generation logic
-      await Future.delayed(Duration(seconds: 1)); // Simulating work
+      // Check for environment variable
+      var templatesDir = Platform.environment['SERVERPOD_VPS_ASSETS'];
+
+      if (templatesDir == null) {
+        // Try pub cache path as last resort
+        final pubCachePath = Platform.environment['PUB_CACHE'] ??
+            path.join(Platform.environment['HOME'] ?? '', '.pub-cache');
+
+        templatesDir = path.join(
+          pubCachePath,
+          'global_packages',
+          'serverpod_vps',
+          'assets',
+          'templates',
+          'serverpod_templates',
+        );
+        logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
+      } else {
+        templatesDir = path.join(templatesDir, 'serverpod_templates');
+        logger.info(
+          'Using development assets: ${styleBold.wrap(templatesDir)}',
+        );
+      }
+
+      if (!Directory(templatesDir).existsSync()) {
+        throw Exception('Templates directory not found: $templatesDir');
+      }
+
+      // Copy GitHub workflows
+      await _copyDirectory(
+        source: path.join(templatesDir, 'github', 'workflows'),
+        destination: path.join(projectDirectoryPath, '.github', 'workflows'),
+        progress: progress,
+      );
+
+      // Copy server files
+      final serverTemplatesDir = path.join(
+        templatesDir,
+        'projectname_server',
+      );
+      if (await Directory(serverTemplatesDir).exists()) {
+        await _copyDirectory(
+          source: serverTemplatesDir,
+          destination: path.join(
+            projectDirectoryPath,
+            '${projectDirectoryName}_server',
+          ),
+          progress: progress,
+        );
+      }
+
+      // Copy server upgrade files
+      final serverUpgradeTemplatesDir = path.join(
+        templatesDir,
+        'projectname_server_upgrade',
+      );
+      if (await Directory(serverUpgradeTemplatesDir).exists()) {
+        await _copyDirectory(
+          source: serverUpgradeTemplatesDir,
+          destination: path.join(
+            projectDirectoryPath,
+            '${projectDirectoryName}_server',
+          ),
+          progress: progress,
+        );
+      }
 
       progress.complete('Template generated successfully');
     } catch (e) {
@@ -115,6 +209,86 @@ class TemplateGenerator {
       logger.err('Error: $e');
       exit(1);
     }
+  }
+
+  Future<void> _copyDirectory({
+    required String source,
+    required String destination,
+    required Progress progress,
+  }) async {
+    final sourceDir = Directory(source);
+    if (!await sourceDir.exists()) {
+      logger.warn('Source directory does not exist: $source');
+      return;
+    }
+
+    // Create the destination directory
+    await Directory(destination).create(recursive: true);
+
+    // Files to ignore
+    final ignoreFiles = {
+      // macOS system files
+      '.DS_Store',
+      '__MACOSX',
+      '.AppleDouble',
+      '.LSOverride',
+
+      // Windows system files
+      'Thumbs.db',
+      'Thumbs.db:encryptable',
+      'ehthumbs.db',
+      'ehthumbs_vista.db',
+      'desktop.ini',
+      '*.lnk', // Windows shortcuts
+
+      // Linux system files
+      '.directory', // KDE directory preferences
+      '.Trash-*', // KDE trash folder
+      '*~', // Temporary files
+      '.fuse_hidden*',
+      '.nfs*',
+    };
+
+    // Copy all files
+    await for (final entity in sourceDir.list(recursive: true)) {
+      if (entity is File) {
+        final fileName = path.basename(entity.path);
+        final relativePath = path.relative(entity.path, from: source);
+
+        // Skip system files, hidden files, and pattern matches
+        if (ignoreFiles.contains(fileName) ||
+            fileName.startsWith('.') ||
+            ignoreFiles.any(
+              (pattern) =>
+                  pattern.contains('*') && _matchesPattern(fileName, pattern),
+            )) {
+          continue;
+        }
+
+        final destPath = path.join(destination, relativePath);
+
+        // Create parent directories if they don't exist
+        await Directory(path.dirname(destPath)).create(recursive: true);
+
+        // Copy the file
+        progress.update('Copying ${styleBold.wrap(relativePath)}');
+
+        await entity.copy(destPath);
+
+        logger.success('✓ Copied ${styleBold.wrap(relativePath)}');
+      }
+    }
+  }
+
+  bool _matchesPattern(String fileName, String pattern) {
+    if (!pattern.contains('*')) return false;
+
+    final regex = RegExp(
+      '^${pattern.replaceAll('*', '.*')}\$',
+      caseSensitive: false,
+    );
+
+    return regex.hasMatch(fileName);
   }
 
   void _printUsage() {
