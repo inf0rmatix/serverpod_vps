@@ -5,6 +5,8 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 
+/// Generator for Serverpod VPS deployment files.
+/// Takes a Serverpod project and adds necessary files for VPS deployment.
 class TemplateGenerator {
   late final ArgParser _argParser;
   final logger = Logger();
@@ -14,10 +16,15 @@ class TemplateGenerator {
   late final String projectDirectoryPath;
   late final String userEmail;
 
-  // Track copied files
+  // Track copied files for summary
   final _copiedFiles = <String>[];
 
   TemplateGenerator() {
+    _initializeArgParser();
+  }
+
+  /// Initialize the argument parser with available options
+  void _initializeArgParser() {
     _argParser = ArgParser()
       ..addFlag(
         'help',
@@ -27,54 +34,29 @@ class TemplateGenerator {
       );
   }
 
+  /// Main entry point for the generator
   Future<void> run(List<String> arguments) async {
     try {
       final results = _argParser.parse(arguments);
 
       if (results['help'] as bool) {
         _printUsage();
-
         return;
       }
 
-      logger.info('');
-      logger.info(
-        backgroundBlue.wrap(
-          white.wrap(
-            '\t========================================================\t',
-          ),
-        ),
-      );
-      logger.info(
-        backgroundBlue.wrap(
-          white.wrap('\t\t  🚀 Serverpod VPS Deployment Generator\t\t\t'),
-        ),
-      );
-      logger.info(
-        backgroundBlue.wrap(
-          white.wrap(
-            '\t========================================================\t',
-          ),
-        ),
-      );
-      logger.info('');
+      _printWelcomeMessage();
 
-      // Use current directory by default
+      // Validate project structure
       if (!await checkDirectoryStructure()) {
         exit(1);
       }
 
-      logger.info(
-        'Project directory: ${styleBold.wrap(projectDirectoryPath)}',
-      );
+      _printProjectInfo();
 
-      logger.info(
-        'Project directory name: ${styleBold.wrap(projectDirectoryName)}',
-      );
-
-      // Get email address for ACME configuration
+      // Get user input
       userEmail = await _promptEmail();
 
+      // Generate deployment files
       await _generateTemplate();
     } catch (e) {
       logger.err('Error: $e');
@@ -83,21 +65,63 @@ class TemplateGenerator {
     }
   }
 
+  /// Print welcome banner
+  void _printWelcomeMessage() {
+    logger.info('');
+    logger.info(
+      backgroundBlue.wrap(
+        white.wrap(
+          '\t========================================================\t',
+        ),
+      ),
+    );
+    logger.info(
+      backgroundBlue.wrap(
+        white.wrap('\t\t  🚀 Serverpod VPS Deployment Generator\t\t\t'),
+      ),
+    );
+    logger.info(
+      backgroundBlue.wrap(
+        white.wrap(
+          '\t========================================================\t',
+        ),
+      ),
+    );
+    logger.info('');
+  }
+
+  /// Print current project information
+  void _printProjectInfo() {
+    logger.info(
+      'Project directory: ${styleBold.wrap(projectDirectoryPath)}',
+    );
+    logger.info(
+      'Project directory name: ${styleBold.wrap(projectDirectoryName)}',
+    );
+  }
+
+  /// Check if the current directory has the expected Serverpod project structure
   @visibleForTesting
   Future<bool> checkDirectoryStructure() async {
-    // Get normalized absolute path to avoid any '.' references
-    projectDirectoryPath = Directory.current.absolute.path;
-
-    // Get the directory name from the path
-    projectDirectoryName = path.basename(
-      path.normalize(projectDirectoryPath),
-    );
+    _initializeProjectPaths();
 
     logger.info(
       'Checking directory structure in: $projectDirectoryPath',
     );
 
-    // Check for required subdirectories
+    return await _validateRequiredDirectories();
+  }
+
+  /// Initialize project paths from current directory
+  void _initializeProjectPaths() {
+    projectDirectoryPath = Directory.current.absolute.path;
+    projectDirectoryName = path.basename(
+      path.normalize(projectDirectoryPath),
+    );
+  }
+
+  /// Validate that required project directories exist
+  Future<bool> _validateRequiredDirectories() async {
     final serverDir = Directory(
       path.join(
         projectDirectoryPath,
@@ -112,119 +136,143 @@ class TemplateGenerator {
     );
 
     if (!await serverDir.exists()) {
-      logger.err('Missing server directory: ${projectDirectoryName}_server');
-      logger.info('Expected directory structure:');
-      logger.info('  $projectDirectoryName/');
-      logger.info('  ├── ${projectDirectoryName}_server/');
-      logger.info('  └── ${projectDirectoryName}_client/');
-
+      _printMissingDirectoryError('server');
       return false;
     }
 
     if (!await clientDir.exists()) {
-      logger.err('Missing client directory: ${projectDirectoryName}_client');
-      logger.info('Expected directory structure:');
-      logger.info('  $projectDirectoryName/');
-      logger.info('  ├── ${projectDirectoryName}_server/');
-      logger.info('  └── ${projectDirectoryName}_client/');
-
+      _printMissingDirectoryError('client');
       return false;
     }
 
     logger.success('Directory structure is valid');
-
     return true;
   }
 
+  /// Print error message for missing directory
+  void _printMissingDirectoryError(String dirType) {
+    logger.err('Missing $dirType directory: ${projectDirectoryName}_$dirType');
+    logger.info('Expected directory structure:');
+    logger.info('  $projectDirectoryName/');
+    logger.info('  ├── ${projectDirectoryName}_server/');
+    logger.info('  └── ${projectDirectoryName}_client/');
+  }
+
+  /// Main template generation logic
   Future<void> _generateTemplate() async {
     logger.success('Generating files for project: $projectDirectoryName');
     logger.detail('Project directory: $projectDirectoryPath');
 
     final progress = logger.progress('Generating');
-    _copiedFiles.clear(); // Clear the list before starting
+    _copiedFiles.clear();
 
     try {
-      // Check for environment variable
-      var templatesDir = Platform.environment['SERVERPOD_VPS_ASSETS'];
-
-      if (templatesDir == null) {
-        // Try pub cache path as last resort
-        final pubCachePath = Platform.environment['PUB_CACHE'] ??
-            path.join(Platform.environment['HOME'] ?? '', '.pub-cache');
-
-        templatesDir = path.join(
-          pubCachePath,
-          'global_packages',
-          'serverpod_vps',
-          'assets',
-          'templates',
-          'serverpod_templates',
-        );
-        logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
-      } else {
-        templatesDir = path.join(templatesDir, 'serverpod_templates');
-        logger.info(
-          'Using development assets: ${styleBold.wrap(templatesDir)}',
-        );
-      }
-
-      if (!Directory(templatesDir).existsSync()) {
-        throw Exception('Templates directory not found: $templatesDir');
-      }
-
-      // Copy GitHub workflows
-      await _copyDirectory(
-        source: path.join(templatesDir, 'github', 'workflows'),
-        destination: path.join(projectDirectoryPath, '.github', 'workflows'),
-        progress: progress,
-      );
-
-      // Copy server files
-      final serverTemplatesDir = path.join(
-        templatesDir,
-        'projectname_server',
-      );
-      if (await Directory(serverTemplatesDir).exists()) {
-        await _copyDirectory(
-          source: serverTemplatesDir,
-          destination: path.join(
-            projectDirectoryPath,
-            '${projectDirectoryName}_server',
-          ),
-          progress: progress,
-        );
-      }
-
-      // Copy server upgrade files
-      final serverUpgradeTemplatesDir = path.join(
-        templatesDir,
-        'projectname_server_upgrade',
-      );
-      if (await Directory(serverUpgradeTemplatesDir).exists()) {
-        await _copyDirectory(
-          source: serverUpgradeTemplatesDir,
-          destination: path.join(
-            projectDirectoryPath,
-            '${projectDirectoryName}_server',
-          ),
-          progress: progress,
-        );
-      }
+      final templatesDir = await _resolveTemplatesDirectory();
+      await _generateDeploymentFiles(templatesDir, progress);
 
       progress.complete('Files generated successfully');
-
-      // Show summary of copied files
-      logger.info('');
-      logger.info(styleBold.wrap('Files generated:'));
-      for (final file in _copiedFiles) {
-        logger.info('  ${styleBold.wrap('•')} $file');
-      }
-      logger.info('');
-    } catch (e) {
+      _printGeneratedFilesSummary();
+    } catch (error) {
       progress.fail('Failed to generate template');
-      logger.err('Error: $e');
+      logger.err('Error: $error');
       exit(1);
     }
+  }
+
+  /// Resolve the templates directory path
+  Future<String> _resolveTemplatesDirectory() async {
+    var templatesDir = Platform.environment['SERVERPOD_VPS_ASSETS'];
+
+    if (templatesDir == null) {
+      templatesDir = _getDefaultTemplatesPath();
+      logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
+    } else {
+      templatesDir = path.join(templatesDir, 'serverpod_templates');
+      logger.info(
+        'Using development assets: ${styleBold.wrap(templatesDir)}',
+      );
+    }
+
+    if (!Directory(templatesDir).existsSync()) {
+      throw Exception('Templates directory not found: $templatesDir');
+    }
+
+    return templatesDir;
+  }
+
+  /// Get the default templates path in pub cache
+  String _getDefaultTemplatesPath() {
+    final pubCachePath = Platform.environment['PUB_CACHE'] ??
+        path.join(Platform.environment['HOME'] ?? '', '.pub-cache');
+
+    return path.join(
+      pubCachePath,
+      'global_packages',
+      'serverpod_vps',
+      'assets',
+      'templates',
+      'serverpod_templates',
+    );
+  }
+
+  /// Generate all deployment files from templates
+  Future<void> _generateDeploymentFiles(
+    String templatesDir,
+    Progress progress,
+  ) async {
+    // Copy GitHub workflows
+    await _copyDirectory(
+      source: path.join(templatesDir, 'github', 'workflows'),
+      destination: path.join(projectDirectoryPath, '.github', 'workflows'),
+      progress: progress,
+    );
+
+    // Copy server files
+    await _copyServerFiles(templatesDir, progress);
+  }
+
+  /// Copy server-specific files
+  Future<void> _copyServerFiles(String templatesDir, Progress progress) async {
+    final serverDestination = path.join(
+      projectDirectoryPath,
+      '${projectDirectoryName}_server',
+    );
+
+    // Copy base server files
+    final serverTemplatesDir = path.join(
+      templatesDir,
+      'projectname_server',
+    );
+    if (await Directory(serverTemplatesDir).exists()) {
+      await _copyDirectory(
+        source: serverTemplatesDir,
+        destination: serverDestination,
+        progress: progress,
+      );
+    }
+
+    // Copy server upgrade files
+    final serverUpgradeTemplatesDir = path.join(
+      templatesDir,
+      'projectname_server_upgrade',
+    );
+    if (await Directory(serverUpgradeTemplatesDir).exists()) {
+      await _copyDirectory(
+        source: serverUpgradeTemplatesDir,
+        destination: serverDestination,
+        progress: progress,
+      );
+    }
+  }
+
+  /// Print summary of all generated files
+  void _printGeneratedFilesSummary() {
+    logger.info('');
+    logger.info(styleBold.wrap('Files generated:'));
+    for (final file in _copiedFiles) {
+      logger.info('  ${styleBold.wrap('•')} $file');
+    }
+    logger.info('');
   }
 
   Future<void> _copyDirectory({
