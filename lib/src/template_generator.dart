@@ -12,6 +12,7 @@ class TemplateGenerator {
   // Store directory info
   late final String projectDirectoryName;
   late final String projectDirectoryPath;
+  late final String userEmail;
 
   TemplateGenerator() {
     _argParser = ArgParser()
@@ -67,6 +68,9 @@ class TemplateGenerator {
       logger.info(
         'Project directory name: ${styleBold.wrap(projectDirectoryName)}',
       );
+
+      // Get email address for ACME configuration
+      userEmail = await _promptEmail();
 
       await _generateTemplate();
     } catch (e) {
@@ -267,13 +271,16 @@ class TemplateGenerator {
 
         final destPath = path.join(destination, relativePath);
 
+        // Read file content and replace email placeholder
+        var content = await entity.readAsString();
+        content = content.replaceAll('{{ACME_EMAIL}}', userEmail);
+
         // Create parent directories if they don't exist
         await Directory(path.dirname(destPath)).create(recursive: true);
 
-        // Copy the file
+        // Write modified content
         progress.update('Copying ${styleBold.wrap(relativePath)}');
-
-        await entity.copy(destPath);
+        await File(destPath).writeAsString(content);
 
         logger.success('✓ Copied ${styleBold.wrap(relativePath)}');
       }
@@ -289,6 +296,38 @@ class TemplateGenerator {
     );
 
     return regex.hasMatch(fileName);
+  }
+
+  Future<String> _promptEmail() async {
+    while (true) {
+      final email = logger.prompt(
+        'Enter your email address for SSL certificate notifications:',
+        defaultValue: '',
+      );
+
+      if (_isValidEmail(email)) {
+        return email;
+      }
+
+      logger.err('Please enter a valid email address.');
+    }
+  }
+
+  bool _isValidEmail(String email) {
+    // Check for @ with text before and after
+    final atIndex = email.indexOf('@');
+    if (atIndex <= 0 || atIndex == email.length - 1) {
+      return false;
+    }
+
+    // Check for . in second part with text before and after
+    final afterAt = email.substring(atIndex + 1);
+    final dotIndex = afterAt.indexOf('.');
+    if (dotIndex <= 0 || dotIndex == afterAt.length - 1) {
+      return false;
+    }
+
+    return true;
   }
 
   void _printUsage() {
