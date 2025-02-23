@@ -14,6 +14,9 @@ class TemplateGenerator {
   late final String projectDirectoryPath;
   late final String userEmail;
 
+  // Track copied files
+  final _copiedFiles = <String>[];
+
   TemplateGenerator() {
     _argParser = ArgParser()
       ..addFlag(
@@ -134,10 +137,11 @@ class TemplateGenerator {
   }
 
   Future<void> _generateTemplate() async {
-    logger.success('Generating template for project: $projectDirectoryName');
+    logger.success('Generating files for project: $projectDirectoryName');
     logger.detail('Project directory: $projectDirectoryPath');
 
-    final progress = logger.progress('Generating template');
+    final progress = logger.progress('Generating');
+    _copiedFiles.clear(); // Clear the list before starting
 
     try {
       // Check for environment variable
@@ -207,7 +211,15 @@ class TemplateGenerator {
         );
       }
 
-      progress.complete('Template generated successfully');
+      progress.complete('Files generated successfully');
+
+      // Show summary of copied files
+      logger.info('');
+      logger.info(styleBold.wrap('Files generated:'));
+      for (final file in _copiedFiles) {
+        logger.info('  ${styleBold.wrap('•')} $file');
+      }
+      logger.info('');
     } catch (e) {
       progress.fail('Failed to generate template');
       logger.err('Error: $e');
@@ -283,6 +295,13 @@ class TemplateGenerator {
         // Write modified content
         progress.update('Copying ${styleBold.wrap(relativePath)}');
         await File(destPath).writeAsString(content);
+
+        // Track the copied file (relative to project root)
+        final relativeToRoot = path.relative(
+          destPath,
+          from: projectDirectoryPath,
+        );
+        _copiedFiles.add(relativeToRoot);
       }
     }
   }
