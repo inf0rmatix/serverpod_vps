@@ -271,9 +271,11 @@ class TemplateGenerator {
 
         final destPath = path.join(destination, relativePath);
 
-        // Read file content and replace email placeholder
+        // Read file content and replace placeholders
         var content = await entity.readAsString();
-        content = content.replaceAll('{{ACME_EMAIL}}', userEmail);
+        content = content
+            .replaceAll('{{ACME_EMAIL}}', userEmail)
+            .replaceAll('projectname', projectDirectoryName);
 
         // Create parent directories if they don't exist
         await Directory(path.dirname(destPath)).create(recursive: true);
@@ -281,8 +283,6 @@ class TemplateGenerator {
         // Write modified content
         progress.update('Copying ${styleBold.wrap(relativePath)}');
         await File(destPath).writeAsString(content);
-
-        logger.success('✓ Copied ${styleBold.wrap(relativePath)}');
       }
     }
   }
