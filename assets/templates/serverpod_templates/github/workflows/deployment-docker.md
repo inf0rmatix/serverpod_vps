@@ -1,21 +1,26 @@
 # Serverpod Deployment to a VPS using Docker
 
-> Deploying your Serverpod to a Virtual Private Server (VPS) using Docker is a cost-effective and scalable solution for startups and small- to medium-scale builds.
+> 💡 Deploying Serverpod to a Virtual Private Server (VPS) using Docker is a
+> cost-effective and scalable solution for startups and small- to medium-scale
+> projects.
 
 This guide walks you through deploying a server built using the Serverpod
-framework to a Virtual Private Server (VPS) using Docker. Serverpod, designed
-for Flutter and Dart, is a backend framework that simplifies server
-development while offering powerful features like database integration and
-seamless client-server communication. Deploying your Serverpod application to a
-VPS is a cost-effective solution for startups and small-scale projects. This
-setup supports vertical scaling by upgrading your virtual machine instance to
-handle increased loads and can be extended to horizontal scaling with tools like
-Hetzner’s load balancers. By following this guide, you’ll create a reliable,
-production-ready deployment environment using Docker Compose, tailored for
-testing and small to medium-sized workloads.
+framework to a Virtual Private Server (VPS) using Docker.
+
+Serverpod is a Flutter/Dart backend framework offering database integration and
+seamless client-server communication. VPS deployment provides a cost-effective
+solution for small to medium projects.
+
+The setup allows vertical scaling through VM upgrades and can be extended to
+horizontal scaling with load balancers. This guide helps you create a
+production-ready Docker Compose deployment.
 
 To reduce the workload on the machine we do not use redis in this deployment.
 Redis becomes necessary when you want to scale your application horizontally.
+
+> 💡 In many cases, scaling vertically is sufficient and saves you the hassle of
+> setting up a load balancer and more infrastructure. Always start with vertical
+> scaling and only scale horizontally if you need to.
 
 ## Prerequisites
 
@@ -41,6 +46,7 @@ Redis becomes necessary when you want to scale your application horizontally.
 - [Preparing the repository](#preparing-the-repository)
   - [Getting a GitHub Personal Access Token](#getting-a-github-personal-access-token)
   - [Adding the secrets to the repository](#adding-the-secrets-to-the-repository)
+- [Creating the deployment files](#creating-the-deployment-files)
 - [Configuring SSL-certificates](#configuring-ssl-certificates)
 - [Configuring the GitHub-Action](#configuring-the-github-action)
 - [Running the GitHub-Action](#running-the-github-action)
@@ -50,13 +56,15 @@ Redis becomes necessary when you want to scale your application horizontally.
 
 ## Preparing the server
 
-This guide uses the "Hetzner" Cloud, you can use any server hoster, Hetzner is just a good and cheap option.
-If you want to use another architecture or hoster, check the docker-compose file and the deployment script for any necessary changes. Currently, the deployment is meant to run on ARM machines.
+This guide uses the 'Hetzner' Cloud, you can use any server hoster, Hetzner is
+just a good and cheap option. If you want to use another architecture or hoster,
+check the docker-compose file and the deployment script for any necessary
+changes. Currently, the deployment is meant to run on ARM machines.
 
 ### Registering at Hetzner Cloud
 
 Register an account at Hetzner Cloud and create a new project.
-Use this referral link to get 20€ credits for free: [Hetzner Cloud](https://hetzner.cloud/?ref=BFdFFipLgfDs)
+[Use this referral link to get 20€ credits for free at Hetzner Cloud](https://hetzner.cloud/?ref=BFdFFipLgfDs)
 
 Next, go to the [Cloud Console](https://console.hetzner.cloud/) and create a project.
 
@@ -116,7 +124,10 @@ ssh root@<your-server-ip>
 
 When prompted "Are you sure you want to continue connecting? [...]", type "yes" and press enter.
 
-> In case you are asked for a password, the SSH key was not added correctly. You should delete the row with the ip from known_hosts (`~/.ssh/known_hosts`) and delete the server. Then create a new server and make sure to add the SSH key correctly.
+> In case you are asked for a password, the SSH key was not added correctly. You
+> should delete the row with the ip from known_hosts (`~/.ssh/known_hosts`) and
+> delete the server. Than create a new server and make sure to add the SSH key
+> correctly.
 
 For security reasons, we will create a new user to manage the deployment. This
 user will not have root privileges.
@@ -274,16 +285,42 @@ The following secrets configure serverpod and the database:
 | SERVERPOD_INSIGHTS_SERVER_PUBLIC_HOST | The domain for the Insights server as configured in the section, (i.e. insights.my-domain.com) [Preparing the domain](#preparing-the-domain) |
 | SERVERPOD_SERVICE_SECRET              | The same value as in your local passwords.yaml file, required to connect using the Serverpod Insights app                                    |
 
+## Creating the deployment files
+
+The CLI will generate all necessary deployment files in your project.
+
+1. Install the Serverpod VPS CLI:
+
+   ```bash
+   dart pub global activate serverpod_vps
+   ```
+
+2. Navigate to your Serverpod project directory:
+
+   ```bash
+   cd my_serverpod_project
+   ```
+
+3. Run the CLI to generate deployment files:
+
+   ```bash
+   serverpod_vps
+   ```
+
+4. When prompted, enter your email address for SSL certificate notifications.
+
 ## Configuring SSL-certificates
 
 All outside connections are secured by Traefik through https. Traefik uses
 [letsencrypt](https://letsencrypt.org/) to automatically generate
-SSL-certificates for your domains. You need to configure the email address that
-letsencrypt will use to send notifications about your certificates.
+SSL-certificates for your domains.
+
+If you need to change the email address that letsencrypt will use to send
+notifications about your certificates, you can do so by editing the email
+address in the `docker-compose.production.yaml` file.
 
 Open `docker-compose.production.yaml` and edit the email address in the
-parameter holding `certificatesresolvers.myresolver.acme.email`. There is also a
-`TODO` above this line for your convenience.
+parameter holding `certificatesresolvers.myresolver.acme.email`.
 
 ## Configuring the GitHub-Action
 
@@ -292,12 +329,12 @@ From the root of your repository, open the `.github/workflows/deployment-docker.
 - Adjust the `GHCR_ORG` variable and replace `<ORGANIZATION>` with your GitHub
   username, or the organization name if you got one.
 - At the top, you can change the branches that automatically trigger the
-  deployment. By default, it is set to `deployment-docker-production`. You can
+  deployment. By default, it is set to `main`. You can
   always trigger the action manually to run it on a different branch.
 
 ## Running the GitHub-Action
 
-Push your changes to the repository.
+Push your changes to the repository on the configured branch.
 
 To manually trigger the action, go to the "Actions" tab in your repository and
 click on the "Deploy to Docker" workflow. Click on "Run workflow" and select the
@@ -305,11 +342,10 @@ branch you want to deploy.
 
 ## Using the Serverpod Insights app
 
-To enable the [Serverpod Insightsapp](https://docs.serverpod.dev/tools/insights),
+To enable the [Serverpod Insights app](https://docs.serverpod.dev/tools/insights),
 you need to adjust the insights server host in production.yaml to the domain you set up in the DNS records.
 The service secret you [specify in the repository secrets](#adding-the-secrets-to-the-repository)
-must match the one you set in
-the local passwords.yaml file for production.
+must match the one you set in the local passwords.yaml file for production.
 
 ## Connecting your Flutter client
 
