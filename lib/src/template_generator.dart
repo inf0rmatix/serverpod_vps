@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -184,7 +185,16 @@ class TemplateGenerator {
     var templatesDir = Platform.environment['SERVERPOD_VPS_ASSETS'];
 
     if (templatesDir == null) {
-      templatesDir = _getDefaultTemplatesPath();
+      // Resolve package URI to get the templates directory
+      final templateUri = await Isolate.resolvePackageUri(
+        Uri.parse('package:serverpod_vps/assets/templates/serverpod_templates'),
+      );
+
+      if (templateUri == null) {
+        throw Exception('Could not resolve templates directory');
+      }
+
+      templatesDir = path.fromUri(templateUri);
       logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
     } else {
       templatesDir = path.join(templatesDir, 'serverpod_templates');
@@ -198,22 +208,6 @@ class TemplateGenerator {
     }
 
     return templatesDir;
-  }
-
-  /// Get the default templates path in pub cache
-  String _getDefaultTemplatesPath() {
-    final pubCachePath = Platform.environment['PUB_CACHE'] ??
-        path.join(Platform.environment['HOME'] ?? '', '.pub-cache');
-
-    return path.join(
-      pubCachePath,
-      'global_packages',
-      'serverpod_vps',
-      'lib',
-      'assets',
-      'templates',
-      'serverpod_templates',
-    );
   }
 
   /// Generate all deployment files from templates
