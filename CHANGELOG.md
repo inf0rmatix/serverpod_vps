@@ -19,3 +19,7 @@
 
 - Improved README
 - Improved Guide
+
+## 0.0.6
+
+- dart format

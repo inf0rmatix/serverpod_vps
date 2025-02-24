@@ -1,1 +1,1 @@
-export 'src/template_generator.dart'; 
+export 'src/template_generator.dart';
