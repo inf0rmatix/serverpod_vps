@@ -14,3 +14,8 @@
 
 - Added `docker` topic to pub.dev
 - Fixed copying assets
+
+## 0.0.5
+
+- Improved README
+- Improved Guide
