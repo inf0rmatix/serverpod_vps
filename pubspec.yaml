@@ -1,6 +1,6 @@
 name: serverpod_vps
 description: A CLI tool for generating the required files for a Serverpod VPS deployment
-version: 0.0.1
+version: 0.0.2
 repository: https://github.com/inf0rmatix/serverpod_vps
 homepage: https://github.com/inf0rmatix/serverpod_vps
 documentation: https://github.com/inf0rmatix/serverpod_vps
@@ -30,9 +30,5 @@ platforms:
   macos:
   windows:
 
-assets:
-  - assets/default.env
-  - assets/templates/serverpod_templates/
-  - assets/templates/serverpod_templates/github/workflows/
-  - assets/templates/serverpod_templates/projectname_server/
-  - assets/templates/serverpod_templates/projectname_server_upgrade/
+files:
+  - assets/**
