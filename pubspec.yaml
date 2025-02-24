@@ -1,5 +1,5 @@
 name: serverpod_vps
-description: A CLI tool for generating and managing Serverpod VPS deployments and configurations
+description: A CLI tool for generating the required files for a Serverpod VPS deployment
 version: 0.0.1
 repository: https://github.com/inf0rmatix/serverpod_vps
 homepage: https://github.com/inf0rmatix/serverpod_vps
@@ -16,7 +16,7 @@ dependencies:
   args: ^2.6.0
   path: ^1.9.1
   mason_logger: ^0.3.2
-  meta: ^1.9.1
+  meta: ^1.16.0
 
 dev_dependencies:
   lints: ^5.1.1
