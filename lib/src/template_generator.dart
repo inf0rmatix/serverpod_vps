@@ -182,26 +182,17 @@ class TemplateGenerator {
 
   /// Resolve the templates directory path
   Future<String> _resolveTemplatesDirectory() async {
-    var templatesDir = Platform.environment['SERVERPOD_VPS_ASSETS'];
+    // Resolve package URI to get the templates directory
+    final templateUri = await Isolate.resolvePackageUri(
+      Uri.parse('package:serverpod_vps/assets/templates/serverpod_templates'),
+    );
 
-    if (templatesDir == null) {
-      // Resolve package URI to get the templates directory
-      final templateUri = await Isolate.resolvePackageUri(
-        Uri.parse('package:serverpod_vps/assets/templates/serverpod_templates'),
-      );
-
-      if (templateUri == null) {
-        throw Exception('Could not resolve templates directory');
-      }
-
-      templatesDir = path.fromUri(templateUri);
-      logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
-    } else {
-      templatesDir = path.join(templatesDir, 'serverpod_templates');
-      logger.info(
-        'Using development assets: ${styleBold.wrap(templatesDir)}',
-      );
+    if (templateUri == null) {
+      throw Exception('Could not resolve templates directory');
     }
+
+    final templatesDir = path.fromUri(templateUri);
+    logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
 
     if (!Directory(templatesDir).existsSync()) {
       throw Exception('Templates directory not found: $templatesDir');
