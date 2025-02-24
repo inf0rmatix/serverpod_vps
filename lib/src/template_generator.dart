@@ -209,6 +209,7 @@ class TemplateGenerator {
       pubCachePath,
       'global_packages',
       'serverpod_vps',
+      'lib',
       'assets',
       'templates',
       'serverpod_templates',
