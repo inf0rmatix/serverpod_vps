@@ -23,3 +23,8 @@
 ## 0.0.6
 
 - dart format
+
+## 0.0.7
+
+- Added example readme
+- Added documentation

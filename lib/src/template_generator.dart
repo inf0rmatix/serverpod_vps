@@ -10,14 +10,18 @@ import 'package:path/path.dart' as path;
 /// Takes a Serverpod project and adds necessary files for VPS deployment.
 class TemplateGenerator {
   late final ArgParser _argParser;
-  final logger = Logger();
+  final _logger = Logger();
 
-  // Store directory info
+  /// The name of the project directory.
   late final String projectDirectoryName;
+
+  /// The path to the project directory.
   late final String projectDirectoryPath;
+
+  /// The email address to use for SSL certificate notifications.
   late final String userEmail;
 
-  // Track copied files for summary
+  /// The list of files that have been copied.
   final _copiedFiles = <String>[];
 
   TemplateGenerator() {
@@ -60,7 +64,7 @@ class TemplateGenerator {
       // Generate deployment files
       await _generateTemplate();
     } catch (e) {
-      logger.err('Error: $e');
+      _logger.err('Error: $e');
       _printUsage();
       exit(1);
     }
@@ -68,35 +72,35 @@ class TemplateGenerator {
 
   /// Print welcome banner
   void _printWelcomeMessage() {
-    logger.info('');
-    logger.info(
+    _logger.info('');
+    _logger.info(
       backgroundBlue.wrap(
         white.wrap(
           '\t========================================================\t',
         ),
       ),
     );
-    logger.info(
+    _logger.info(
       backgroundBlue.wrap(
         white.wrap('\t\t  🚀 Serverpod VPS Deployment Generator\t\t\t'),
       ),
     );
-    logger.info(
+    _logger.info(
       backgroundBlue.wrap(
         white.wrap(
           '\t========================================================\t',
         ),
       ),
     );
-    logger.info('');
+    _logger.info('');
   }
 
   /// Print current project information
   void _printProjectInfo() {
-    logger.info(
+    _logger.info(
       'Project directory: ${styleBold.wrap(projectDirectoryPath)}',
     );
-    logger.info(
+    _logger.info(
       'Project directory name: ${styleBold.wrap(projectDirectoryName)}',
     );
   }
@@ -106,7 +110,7 @@ class TemplateGenerator {
   Future<bool> checkDirectoryStructure() async {
     _initializeProjectPaths();
 
-    logger.info(
+    _logger.info(
       'Checking directory structure in: $projectDirectoryPath',
     );
 
@@ -146,25 +150,25 @@ class TemplateGenerator {
       return false;
     }
 
-    logger.success('Directory structure is valid');
+    _logger.success('Directory structure is valid');
     return true;
   }
 
   /// Print error message for missing directory
   void _printMissingDirectoryError(String dirType) {
-    logger.err('Missing $dirType directory: ${projectDirectoryName}_$dirType');
-    logger.info('Expected directory structure:');
-    logger.info('  $projectDirectoryName/');
-    logger.info('  ├── ${projectDirectoryName}_server/');
-    logger.info('  └── ${projectDirectoryName}_client/');
+    _logger.err('Missing $dirType directory: ${projectDirectoryName}_$dirType');
+    _logger.info('Expected directory structure:');
+    _logger.info('  $projectDirectoryName/');
+    _logger.info('  ├── ${projectDirectoryName}_server/');
+    _logger.info('  └── ${projectDirectoryName}_client/');
   }
 
   /// Main template generation logic
   Future<void> _generateTemplate() async {
-    logger.success('Generating files for project: $projectDirectoryName');
-    logger.detail('Project directory: $projectDirectoryPath');
+    _logger.success('Generating files for project: $projectDirectoryName');
+    _logger.detail('Project directory: $projectDirectoryPath');
 
-    final progress = logger.progress('Generating');
+    final progress = _logger.progress('Generating');
     _copiedFiles.clear();
 
     try {
@@ -175,7 +179,7 @@ class TemplateGenerator {
       _printGeneratedFilesSummary();
     } catch (error) {
       progress.fail('Failed to generate template');
-      logger.err('Error: $error');
+      _logger.err('Error: $error');
       exit(1);
     }
   }
@@ -192,7 +196,7 @@ class TemplateGenerator {
     }
 
     final templatesDir = path.fromUri(templateUri);
-    logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
+    _logger.info('Using installed assets: ${styleBold.wrap(templatesDir)}');
 
     if (!Directory(templatesDir).existsSync()) {
       throw Exception('Templates directory not found: $templatesDir');
@@ -253,12 +257,12 @@ class TemplateGenerator {
 
   /// Print summary of all generated files
   void _printGeneratedFilesSummary() {
-    logger.info('');
-    logger.info(styleBold.wrap('Files generated:'));
+    _logger.info('');
+    _logger.info(styleBold.wrap('Files generated:'));
     for (final file in _copiedFiles) {
-      logger.info('  ${styleBold.wrap('•')} $file');
+      _logger.info('  ${styleBold.wrap('•')} $file');
     }
-    logger.info('');
+    _logger.info('');
   }
 
   Future<void> _copyDirectory({
@@ -268,7 +272,7 @@ class TemplateGenerator {
   }) async {
     final sourceDir = Directory(source);
     if (!await sourceDir.exists()) {
-      logger.warn('Source directory does not exist: $source');
+      _logger.warn('Source directory does not exist: $source');
       return;
     }
 
@@ -353,7 +357,7 @@ class TemplateGenerator {
 
   Future<String> _promptEmail() async {
     while (true) {
-      final email = logger.prompt(
+      final email = _logger.prompt(
         'Enter your email address for SSL certificate notifications:',
         defaultValue: '',
       );
@@ -362,7 +366,7 @@ class TemplateGenerator {
         return email;
       }
 
-      logger.err('Please enter a valid email address.');
+      _logger.err('Please enter a valid email address.');
     }
   }
 
@@ -384,8 +388,8 @@ class TemplateGenerator {
   }
 
   void _printUsage() {
-    logger.info('Usage: serverpod_vps');
-    logger.info('Run this command in your Serverpod project directory.');
-    logger.info(_argParser.usage);
+    _logger.info('Usage: serverpod_vps');
+    _logger.info('Run this command in your Serverpod project directory.');
+    _logger.info(_argParser.usage);
   }
 }
