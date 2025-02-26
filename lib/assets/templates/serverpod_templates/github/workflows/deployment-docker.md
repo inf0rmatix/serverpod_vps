@@ -190,17 +190,23 @@ sudo systemctl restart ssh
    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
    ```
 
-4. Restart the SSH service to apply changes:
+4. Copy the private key to your clipboard—including the lines `-----BEGIN OPENSSH PRIVATE KEY-----` and `-----END OPENSSH PRIVATE KEY-----`. Save this key in a secure location, as you will need it later. To display the private key, run:
+
+   ```bash
+   cat ~/.ssh/id_rsa
+   ```
+
+5. Logout from the github-actions user:
+
+   ```bash
+   exit
+   ```
+
+6. Restart the SSH service to apply changes:
 
    ```bash
    sudo systemctl restart ssh
    ```
-
-Copy the private key to your clipboard—including the lines `-----BEGIN OPENSSH PRIVATE KEY-----` and `-----END OPENSSH PRIVATE KEY-----`. Save this key in a secure location, as you will need it later. To display the private key, run:
-
-```bash
-cat ~/.ssh/id_rsa
-```
 
 ### Firewall configuration
 

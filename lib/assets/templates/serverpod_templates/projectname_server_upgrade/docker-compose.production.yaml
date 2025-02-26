@@ -1,16 +1,13 @@
-version: "3.8"
-
 services:
   traefik:
     restart: on-failure
-    image: traefik:v2.3
+    image: traefik:v3.0
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      # TODO: Change this to your actual email address for Let's Encrypt notifications.
       - "--certificatesresolvers.myresolver.acme.email={{ACME_EMAIL}}"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:

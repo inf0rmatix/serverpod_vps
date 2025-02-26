@@ -31,5 +31,10 @@
 
 ## 0.0.8
 
-- fixed a bug where the project name was not being detected when root directory name was not the same as the project name
+- Fixed a bug where the project name was not being detected when root directory name was not the same as the project name
 - Added tests
+
+## 1.0.0
+
+- Updated to use Traefik v3
+- Fixed setup instructions
