@@ -120,8 +120,49 @@ class TemplateGenerator {
   /// Initialize project paths from current directory
   void _initializeProjectPaths() {
     projectDirectoryPath = Directory.current.absolute.path;
-    projectDirectoryName = path.basename(
-      path.normalize(projectDirectoryPath),
+    projectDirectoryName = findProjectName();
+  }
+
+  /// Find project name by looking at _server and _client directory names
+  @visibleForTesting
+  String findProjectName() {
+    final currentDir = Directory.current;
+    final contents = currentDir.listSync();
+
+    String? serverDirName;
+    String? clientDirName;
+
+    for (final entity in contents) {
+      if (entity is! Directory) {
+        continue;
+      }
+
+      final name = path.basename(entity.path);
+
+      const serverSuffix = '_server';
+      const clientSuffix = '_client';
+
+      if (name.endsWith(serverSuffix)) {
+        serverDirName = name.substring(0, name.length - serverSuffix.length);
+      } else if (name.endsWith(clientSuffix)) {
+        clientDirName = name.substring(0, name.length - clientSuffix.length);
+      }
+
+      if (serverDirName != null && clientDirName != null) {
+        break;
+      }
+    }
+
+    // Verify both directories exist and have matching names
+    if (serverDirName != null &&
+        clientDirName != null &&
+        serverDirName == clientDirName) {
+      return serverDirName;
+    }
+
+    throw Exception(
+      'Could not determine project name. Ensure you have matching '
+      'projectname_server and projectname_client directories.',
     );
   }
 
@@ -133,6 +174,7 @@ class TemplateGenerator {
         '${projectDirectoryName}_server',
       ),
     );
+
     final clientDir = Directory(
       path.join(
         projectDirectoryPath,
