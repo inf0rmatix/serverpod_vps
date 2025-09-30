@@ -1,3 +1,5 @@
+<!-- markdownlint-disable first-line-heading -->
+
 ## 0.0.1
 
 - Initial release
@@ -38,3 +40,7 @@
 
 - Updated to use Traefik v3
 - Fixed setup instructions
+
+## 1.0.1
+
+- Fixed postgres image version to 17

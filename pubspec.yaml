@@ -1,6 +1,6 @@
 name: serverpod_vps
 description: A CLI tool for generating the required files for a Serverpod VPS deployment
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/inf0rmatix/serverpod_vps
 homepage: https://github.com/inf0rmatix/serverpod_vps
 documentation: https://github.com/inf0rmatix/serverpod_vps

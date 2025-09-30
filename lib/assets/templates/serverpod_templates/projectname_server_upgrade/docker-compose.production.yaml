@@ -29,7 +29,7 @@ services:
       timeout: 5s
       retries: 5
     restart: on-failure
-    image: postgres:latest
+    image: postgres:17
     labels:
       - "traefik.enable=false" # We typically don't expose databases via HTTP.
     ports:
