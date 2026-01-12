@@ -44,3 +44,7 @@
 ## 1.0.1
 
 - Fixed postgres image version to 17
+
+## 1.0.2
+
+- Updated Traefik from v3.0 to v3.6.2 for Docker API compatibility
