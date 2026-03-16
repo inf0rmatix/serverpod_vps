@@ -321,7 +321,7 @@ file. Open the file and modify the value of the parameter
 
 From the root of your repository, open the `.github/workflows/deployment-docker.yml` file and adjust the following settings:
 
-- Update the `GHCR_ORG` variable by replacing `<ORGANIZATION>` with your GitHub username or organization name.
+- Update the `GHCR_ORG` variable by replacing `<ORGANIZATION>` with your GitHub username or organization name. In case your repository belongs to an organization, you must use the organization name, username will not work in this case.
 - At the top of the file, you can change the branches that automatically trigger the deployment. By default, it is set to `main`. You can also trigger the action manually on a different branch.
 
 ## Running the GitHub-Action
