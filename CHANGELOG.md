@@ -1,50 +1,54 @@
 <!-- markdownlint-disable first-line-heading -->
 
-## 0.0.1
+## 1.0.3
 
-- Initial release
+- Updated documentation
 
-## 0.0.2
+## 1.0.2
 
-- Fixed pubspec.yaml `files` section
+- Updated Traefik from v3.0 to v3.6.2 for Docker API compatibility
 
-## 0.0.3
+## 1.0.1
 
-- Moved assets to lib
-
-## 0.0.4
-
-- Added `docker` topic to pub.dev
-- Fixed copying assets
-
-## 0.0.5
-
-- Improved README
-- Improved Guide
-
-## 0.0.6
-
-- dart format
-
-## 0.0.7
-
-- Added example readme
-- Added documentation
-
-## 0.0.8
-
-- Fixed a bug where the project name was not being detected when root directory name was not the same as the project name
-- Added tests
+- Fixed postgres image version to 17
 
 ## 1.0.0
 
 - Updated to use Traefik v3
 - Fixed setup instructions
 
-## 1.0.1
+## 0.0.8
 
-- Fixed postgres image version to 17
+- Fixed a bug where the project name was not being detected when root directory name was not the same as the project name
+- Added tests
 
-## 1.0.2
+## 0.0.7
 
-- Updated Traefik from v3.0 to v3.6.2 for Docker API compatibility
+- Added example readme
+- Added documentation
+
+## 0.0.6
+
+- dart format
+
+## 0.0.5
+
+- Improved README
+- Improved Guide
+
+## 0.0.4
+
+- Added `docker` topic to pub.dev
+- Fixed copying assets
+
+## 0.0.3
+
+- Moved assets to lib
+
+## 0.0.2
+
+- Fixed pubspec.yaml `files` section
+
+## 0.0.1
+
+- Initial release
