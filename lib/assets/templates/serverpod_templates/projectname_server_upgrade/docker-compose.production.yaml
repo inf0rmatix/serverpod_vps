@@ -69,6 +69,9 @@ services:
       - SERVERPOD_WEB_SERVER_PUBLIC_SCHEME
       - SERVERPOD_WEB_SERVER_PORT
       - SERVERPOD_SERVICE_SECRET
+      - SERVERPOD_PASSWORD_emailSecretHashPepper
+      - SERVERPOD_PASSWORD_jwtHmacSha512PrivateKey
+      - SERVERPOD_PASSWORD_jwtRefreshTokenHashPepper
       - SERVERPOD_MAX_REQUEST_SIZE
     command:
       [

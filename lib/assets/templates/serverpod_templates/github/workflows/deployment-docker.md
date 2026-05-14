@@ -281,6 +281,13 @@ The following secrets configure Serverpod and the database:
 | SERVERPOD_WEB_SERVER_PUBLIC_HOST      | The domain for the Web server (e.g., web.my-domain.com)                                                     |
 | SERVERPOD_INSIGHTS_SERVER_PUBLIC_HOST | The domain for the Insights server (e.g., insights.my-domain.com)                                           |
 | SERVERPOD_SERVICE_SECRET              | The same value as in your local `passwords.yaml` file, required to connect using the Serverpod Insights app |
+| SERVERPOD_PASSWORD_EMAIL_SECRET_HASH_PEPPER     | Same value as the `emailSecretHashPepper` key in your local `passwords.yaml` (production) — required when using `serverpod_auth_idp_server` with `JwtConfigFromPasswords()` |
+| SERVERPOD_PASSWORD_JWT_HMAC_SHA512_PRIVATE_KEY  | Same value as the `jwtHmacSha512PrivateKey` key in your local `passwords.yaml` (production) — required when using IdP JWT from passwords |
+| SERVERPOD_PASSWORD_JWT_REFRESH_TOKEN_HASH_PEPPER | Same value as the `jwtRefreshTokenHashPepper` key in your local `passwords.yaml` (production) — required when using IdP JWT from passwords |
+
+The production Docker image does not ship `passwords.yaml`. Serverpod reads secret values from environment variables named `SERVERPOD_PASSWORD_<key>`, where `<key>` matches the camelCase key from `passwords.yaml` (for example, `SERVERPOD_PASSWORD_jwtRefreshTokenHashPepper`). The generated workflow and `docker-compose.production.yaml` pass the three IdP/JWT-related keys above from GitHub Actions into the container.
+
+If you use `JwtConfigFromPasswords()` or extend IdP configuration with additional password keys, add each key the same way: declare it under the `serverpod` service `environment` in `docker-compose.production.yaml`, map a repository secret in `.github/workflows/deployment-docker.yml`, and document the secret here. Projects without `serverpod_auth_idp_server` / `JwtConfigFromPasswords()` do not need the three `SERVERPOD_PASSWORD_*` repository secrets unless your app references those password keys at runtime.
 
 ## Creating the deployment files
 
