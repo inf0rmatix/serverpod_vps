@@ -20,7 +20,7 @@ services:
       - postgres
       - serverpod
     networks:
-      - serverpod-network
+      - "{{DOCKER_NETWORK_NAME}}"
 
   postgres:
     healthcheck:
@@ -43,7 +43,7 @@ services:
     volumes:
       - projectname_data:/var/lib/postgresql/data
     networks:
-      - serverpod-network
+      - "{{DOCKER_NETWORK_NAME}}"
 
   serverpod:
     restart: on-failure
@@ -108,11 +108,11 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - serverpod-network
+      - "{{DOCKER_NETWORK_NAME}}"
 
 networks:
-  serverpod-network:
-    name: serverpod-network
+  "{{DOCKER_NETWORK_NAME}}":
+    name: "{{DOCKER_NETWORK_NAME}}"
     driver: bridge
 
 volumes:
