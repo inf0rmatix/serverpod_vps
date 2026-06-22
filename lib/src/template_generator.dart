@@ -123,6 +123,23 @@ class TemplateGenerator {
     projectDirectoryName = findProjectName();
   }
 
+  /// Generates deployment files without interactive prompts.
+  @visibleForTesting
+  Future<void> generateDeploymentFilesForTesting({
+    required String email,
+  }) async {
+    userEmail = email;
+    _initializeProjectPaths();
+
+    final progress = _logger.progress('Generating');
+    _copiedFiles.clear();
+
+    final templatesDir = await _resolveTemplatesDirectory();
+    await _generateDeploymentFiles(templatesDir, progress);
+
+    progress.complete('Files generated successfully');
+  }
+
   /// Find project name by looking at _server and _client directory names
   @visibleForTesting
   String findProjectName() {

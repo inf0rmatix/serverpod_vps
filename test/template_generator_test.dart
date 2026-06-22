@@ -87,6 +87,73 @@ void main() {
       }
     });
 
+    test(
+      'includes IdP JWT password env vars in generated deployment files',
+      () async {
+        const testDirName = 'password_env_test_project';
+        const testEmail = 'test@example.com';
+
+        final testDir = Directory(path.join(tempDir.path, testDirName))
+          ..createSync();
+
+        Directory(path.join(testDir.path, '${testDirName}_server'))
+            .createSync();
+        Directory(path.join(testDir.path, '${testDirName}_client'))
+            .createSync();
+
+        final originalDir = Directory.current;
+        Directory.current = testDir.path;
+
+        try {
+          await generator.generateDeploymentFilesForTesting(email: testEmail);
+
+          final composeContent = File(
+            path.join(
+              testDir.path,
+              '${testDirName}_server',
+              'docker-compose.production.yaml',
+            ),
+          ).readAsStringSync();
+
+          final workflowContent = File(
+            path.join(
+              testDir.path,
+              '.github',
+              'workflows',
+              'deployment-docker.yml',
+            ),
+          ).readAsStringSync();
+
+          const passwordEnvVars = [
+            'SERVERPOD_PASSWORD_emailSecretHashPepper',
+            'SERVERPOD_PASSWORD_jwtHmacSha512PrivateKey',
+            'SERVERPOD_PASSWORD_jwtRefreshTokenHashPepper',
+          ];
+
+          const githubSecrets = [
+            'SERVERPOD_PASSWORD_EMAIL_SECRET_HASH_PEPPER',
+            'SERVERPOD_PASSWORD_JWT_HMAC_SHA512_PRIVATE_KEY',
+            'SERVERPOD_PASSWORD_JWT_REFRESH_TOKEN_HASH_PEPPER',
+          ];
+
+          for (final envVar in passwordEnvVars) {
+            expect(composeContent, contains(envVar));
+            expect(workflowContent, contains(envVar));
+          }
+
+          for (final secret in githubSecrets) {
+            expect(workflowContent, contains(secret));
+          }
+
+          expect(composeContent, isNot(contains('projectname')));
+          expect(workflowContent, contains('${testDirName}_server'));
+          expect(composeContent, contains(testEmail));
+        } finally {
+          Directory.current = originalDir;
+        }
+      },
+    );
+
     test('throws when client directory is missing', () async {
       // Create a test directory with a known name
       final testDirName = 'my_test_project';
