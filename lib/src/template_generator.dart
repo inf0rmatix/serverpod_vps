@@ -6,6 +6,8 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 
+import 'docker_network_name.dart';
+
 /// Generator for Serverpod VPS deployment files.
 /// Takes a Serverpod project and adds necessary files for VPS deployment.
 class TemplateGenerator {
@@ -269,19 +271,52 @@ class TemplateGenerator {
     String templatesDir,
     Progress progress,
   ) async {
+    final dockerNetworkNameResult = DockerNetworkName.buildFromProjectName(
+      projectDirectoryName,
+    );
+    _logDockerNetworkNameWarnings(dockerNetworkNameResult);
+
+    final dockerNetworkName = dockerNetworkNameResult.networkName;
+
     // Copy GitHub workflows
     await _copyDirectory(
       source: path.join(templatesDir, 'github', 'workflows'),
       destination: path.join(projectDirectoryPath, '.github', 'workflows'),
       progress: progress,
+      dockerNetworkName: dockerNetworkName,
     );
 
     // Copy server files
-    await _copyServerFiles(templatesDir, progress);
+    await _copyServerFiles(
+      templatesDir,
+      progress,
+      dockerNetworkName: dockerNetworkName,
+    );
+  }
+
+  void _logDockerNetworkNameWarnings(DockerNetworkNameBuildResult result) {
+    if (result.wasSanitized) {
+      _logger.info(
+        'Docker network name sanitized to "${result.networkName}" because '
+        'the project name contains characters that are invalid for Docker '
+        'network names.',
+      );
+    }
+
+    if (result.wasTruncated) {
+      _logger.info(
+        'Docker network name truncated to "${result.networkName}" because '
+        'Docker network names must be 63 characters or fewer.',
+      );
+    }
   }
 
   /// Copy server-specific files
-  Future<void> _copyServerFiles(String templatesDir, Progress progress) async {
+  Future<void> _copyServerFiles(
+    String templatesDir,
+    Progress progress, {
+    required String dockerNetworkName,
+  }) async {
     final serverDestination = path.join(
       projectDirectoryPath,
       '${projectDirectoryName}_server',
@@ -297,6 +332,7 @@ class TemplateGenerator {
         source: serverTemplatesDir,
         destination: serverDestination,
         progress: progress,
+        dockerNetworkName: dockerNetworkName,
       );
     }
 
@@ -310,6 +346,7 @@ class TemplateGenerator {
         source: serverUpgradeTemplatesDir,
         destination: serverDestination,
         progress: progress,
+        dockerNetworkName: dockerNetworkName,
       );
     }
   }
@@ -328,6 +365,7 @@ class TemplateGenerator {
     required String source,
     required String destination,
     required Progress progress,
+    required String dockerNetworkName,
   }) async {
     final sourceDir = Directory(source);
     if (!await sourceDir.exists()) {
@@ -382,8 +420,10 @@ class TemplateGenerator {
 
         // Read file content and replace placeholders
         var content = await entity.readAsString();
+
         content = content
             .replaceAll('{{ACME_EMAIL}}', userEmail)
+            .replaceAll('{{DOCKER_NETWORK_NAME}}', dockerNetworkName)
             .replaceAll('projectname', projectDirectoryName);
 
         // Create parent directories if they don't exist

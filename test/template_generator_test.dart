@@ -125,9 +125,52 @@ void main() {
           ).readAsStringSync();
 
           expect(composeContent, isNot(contains('projectname')));
+          expect(composeContent, isNot(contains('{{DOCKER_NETWORK_NAME}}')));
           expect(workflowContent, isNot(contains('projectname')));
+          expect(composeContent, isNot(contains('serverpod-network')));
+          expect(composeContent, contains('$testDirName-network'));
           expect(workflowContent, contains('${testDirName}_server'));
           expect(composeContent, contains(testEmail));
+        } finally {
+          Directory.current = originalDir;
+        }
+      },
+    );
+
+    test(
+      'sanitizes docker network names for projects with invalid characters',
+      () async {
+        const testDirName = 'my weird!name';
+        const expectedNetworkName = 'my-weird-name-network';
+
+        final testDir = Directory(path.join(tempDir.path, 'weird_name_project'))
+          ..createSync();
+
+        Directory(path.join(testDir.path, '${testDirName}_server'))
+            .createSync();
+        Directory(path.join(testDir.path, '${testDirName}_client'))
+            .createSync();
+
+        final originalDir = Directory.current;
+        Directory.current = testDir.path;
+
+        try {
+          await generator.generateDeploymentFilesForTesting(
+            email: 'ssl@example.com',
+          );
+
+          final composeContent = File(
+            path.join(
+              testDir.path,
+              '${testDirName}_server',
+              'docker-compose.production.yaml',
+            ),
+          ).readAsStringSync();
+
+          expect(composeContent, contains(expectedNetworkName));
+          expect(composeContent, isNot(contains('{{DOCKER_NETWORK_NAME}}')));
+          expect(composeContent, isNot(contains('$testDirName-network')));
+          expect(DockerNetworkName.isValid(expectedNetworkName), isTrue);
         } finally {
           Directory.current = originalDir;
         }

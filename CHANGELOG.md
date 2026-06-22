@@ -1,5 +1,12 @@
 <!-- markdownlint-disable first-line-heading -->
 
+## 1.0.6
+
+- Use a project-specific Docker network name via the `{{DOCKER_NETWORK_NAME}}` placeholder in generated `docker-compose.production.yaml` instead of the hardcoded `serverpod-network`
+- Sanitize project names so generated Docker network names only contain valid characters
+- Inform when the Docker network name is sanitized or truncated to fit Docker limits
+- **Note:** Existing deployments must update `docker-compose.production.yaml` to use the new network name or re-run `serverpod_vps` to regenerate the file
+
 ## 1.0.5
 
 - Bump generated GitHub Actions to Node 24-compatible versions (`checkout@v6`, `login-action@v4`, `metadata-action@v6`, `setup-buildx-action@v4`, `build-push-action@v7`)
