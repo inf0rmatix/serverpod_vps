@@ -88,6 +88,53 @@ void main() {
     });
 
     test(
+      'replaces projectname and email placeholders in generated files',
+      () async {
+        const testDirName = 'placeholder_test_project';
+        const testEmail = 'ssl@example.com';
+
+        final testDir = Directory(path.join(tempDir.path, testDirName))
+          ..createSync();
+
+        Directory(path.join(testDir.path, '${testDirName}_server'))
+            .createSync();
+        Directory(path.join(testDir.path, '${testDirName}_client'))
+            .createSync();
+
+        final originalDir = Directory.current;
+        Directory.current = testDir.path;
+
+        try {
+          await generator.generateDeploymentFilesForTesting(email: testEmail);
+
+          final composeContent = File(
+            path.join(
+              testDir.path,
+              '${testDirName}_server',
+              'docker-compose.production.yaml',
+            ),
+          ).readAsStringSync();
+
+          final workflowContent = File(
+            path.join(
+              testDir.path,
+              '.github',
+              'workflows',
+              'deployment-docker.yml',
+            ),
+          ).readAsStringSync();
+
+          expect(composeContent, isNot(contains('projectname')));
+          expect(workflowContent, isNot(contains('projectname')));
+          expect(workflowContent, contains('${testDirName}_server'));
+          expect(composeContent, contains(testEmail));
+        } finally {
+          Directory.current = originalDir;
+        }
+      },
+    );
+
+    test(
       'includes IdP JWT password env vars in generated deployment files',
       () async {
         const testDirName = 'password_env_test_project';
@@ -144,10 +191,6 @@ void main() {
           for (final secret in githubSecrets) {
             expect(workflowContent, contains(secret));
           }
-
-          expect(composeContent, isNot(contains('projectname')));
-          expect(workflowContent, contains('${testDirName}_server'));
-          expect(composeContent, contains(testEmail));
         } finally {
           Directory.current = originalDir;
         }
@@ -274,6 +317,29 @@ void main() {
           Directory.current = originalDir;
         }
       });
+    });
+  });
+
+  group('deployment workflow template', () {
+    late String workflowTemplate;
+
+    setUp(() {
+      workflowTemplate = File(
+        path.join(
+          Directory.current.path,
+          'lib',
+          'assets',
+          'templates',
+          'serverpod_templates',
+          'github',
+          'workflows',
+          'deployment-docker.yml',
+        ),
+      ).readAsStringSync();
+    });
+
+    test('builds Docker image for linux/arm64', () {
+      expect(workflowTemplate, contains('platforms: linux/arm64'));
     });
   });
 }

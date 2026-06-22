@@ -1,5 +1,10 @@
 <!-- markdownlint-disable first-line-heading -->
 
+## 1.0.5
+
+- Bump generated GitHub Actions to Node 24-compatible versions (`checkout@v6`, `login-action@v4`, `metadata-action@v6`, `setup-buildx-action@v4`, `build-push-action@v7`)
+- Build Docker images for `linux/arm64` only (64-bit ARM VPS, e.g. Hetzner Cloud)
+
 ## 1.0.4
 
 - Pass IdP/JWT password keys via `SERVERPOD_PASSWORD_*` in generated `docker-compose.production.yaml` and GitHub Actions deploy env (for `serverpod_auth_idp_server` + `JwtConfigFromPasswords()`)
