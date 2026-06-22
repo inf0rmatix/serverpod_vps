@@ -1,5 +1,10 @@
 <!-- markdownlint-disable first-line-heading -->
 
+## 1.0.4
+
+- Pass IdP/JWT password keys via `SERVERPOD_PASSWORD_*` in generated `docker-compose.production.yaml` and GitHub Actions deploy env (for `serverpod_auth_idp_server` + `JwtConfigFromPasswords()`)
+- Document corresponding repository secrets in the deployment guide
+
 ## 1.0.3
 
 - Updated documentation

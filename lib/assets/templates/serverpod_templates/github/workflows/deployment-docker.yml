@@ -164,6 +164,11 @@ jobs:
           SERVERPOD_MAX_REQUEST_SIZE: ${{ secrets.SERVERPOD_MAX_REQUEST_SIZE }}
           # The token used to connect with insights must be at least 20 chars
           SERVERPOD_SERVICE_SECRET: ${{ secrets.SERVERPOD_SERVICE_SECRET }}
+          # IdP / JWT (serverpod_auth_idp_server + JwtConfigFromPasswords):
+          # copy values from the same keys in local passwords.yaml (production)
+          SERVERPOD_PASSWORD_emailSecretHashPepper: ${{ secrets.SERVERPOD_PASSWORD_EMAIL_SECRET_HASH_PEPPER }}
+          SERVERPOD_PASSWORD_jwtHmacSha512PrivateKey: ${{ secrets.SERVERPOD_PASSWORD_JWT_HMAC_SHA512_PRIVATE_KEY }}
+          SERVERPOD_PASSWORD_jwtRefreshTokenHashPepper: ${{ secrets.SERVERPOD_PASSWORD_JWT_REFRESH_TOKEN_HASH_PEPPER }}
 
       - name: cleanup
         run: rm -rf ~/.ssh
