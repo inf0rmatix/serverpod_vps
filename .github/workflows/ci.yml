@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Analyze
+        run: dart analyze --fatal-warnings
+
+      - name: Run tests
+        run: dart test
