@@ -6,7 +6,9 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 
+import 'deployment_stack_config.dart';
 import 'docker_network_name.dart';
+import 'https_port_acme_warning.dart';
 
 /// Generator for Serverpod VPS deployment files.
 /// Takes a Serverpod project and adds necessary files for VPS deployment.
@@ -22,6 +24,11 @@ class TemplateGenerator {
 
   /// The email address to use for SSL certificate notifications.
   late final String userEmail;
+
+  /// Host port bindings for the generated stack.
+  late final int traefikHttpHostPort;
+  late final int traefikHttpsHostPort;
+  late final int postgresHostPort;
 
   /// The list of files that have been copied.
   final _copiedFiles = <String>[];
@@ -62,6 +69,20 @@ class TemplateGenerator {
 
       // Get user input
       userEmail = await _promptEmail();
+      traefikHttpHostPort = await _promptPort(
+        label: 'Traefik HTTP host port',
+        defaultValue: DeploymentStackConfig.defaultTraefikHttpHostPort,
+      );
+      traefikHttpsHostPort = await _promptPort(
+        label: 'Traefik HTTPS host port',
+        defaultValue: DeploymentStackConfig.defaultTraefikHttpsHostPort,
+      );
+      postgresHostPort = await _promptPort(
+        label: 'Postgres host port (127.0.0.1 bind)',
+        defaultValue: DeploymentStackConfig.defaultPostgresHostPort,
+      );
+
+      logNonStandardHttpsPortWarningIfNeeded();
 
       // Generate deployment files
       await _generateTemplate();
@@ -129,8 +150,15 @@ class TemplateGenerator {
   @visibleForTesting
   Future<void> generateDeploymentFilesForTesting({
     required String email,
+    int traefikHttpHostPort = DeploymentStackConfig.defaultTraefikHttpHostPort,
+    int traefikHttpsHostPort =
+        DeploymentStackConfig.defaultTraefikHttpsHostPort,
+    int postgresHostPort = DeploymentStackConfig.defaultPostgresHostPort,
   }) async {
     userEmail = email;
+    this.traefikHttpHostPort = traefikHttpHostPort;
+    this.traefikHttpsHostPort = traefikHttpsHostPort;
+    this.postgresHostPort = postgresHostPort;
     _initializeProjectPaths();
 
     final progress = _logger.progress('Generating');
@@ -276,22 +304,44 @@ class TemplateGenerator {
     );
     _logDockerNetworkNameWarnings(dockerNetworkNameResult);
 
-    final dockerNetworkName = dockerNetworkNameResult.networkName;
+    final stackConfig = DeploymentStackConfig.fromProjectName(
+      projectDirectoryName,
+      traefikHttpHostPort: traefikHttpHostPort,
+      traefikHttpsHostPort: traefikHttpsHostPort,
+      postgresHostPort: postgresHostPort,
+    );
 
     // Copy GitHub workflows
     await _copyDirectory(
       source: path.join(templatesDir, 'github', 'workflows'),
       destination: path.join(projectDirectoryPath, '.github', 'workflows'),
       progress: progress,
-      dockerNetworkName: dockerNetworkName,
+      stackConfig: stackConfig,
     );
 
     // Copy server files
     await _copyServerFiles(
       templatesDir,
       progress,
-      dockerNetworkName: dockerNetworkName,
+      stackConfig: stackConfig,
     );
+  }
+
+  @visibleForTesting
+  void logNonStandardHttpsPortWarningIfNeeded() {
+    if (!HttpsPortAcmeWarning.shouldWarn(traefikHttpsHostPort)) {
+      return;
+    }
+
+    _logger.warn(
+      'Non-standard HTTPS host port ($traefikHttpsHostPort): '
+      'manual Let\'s Encrypt changes are required.',
+    );
+
+    for (final line
+        in HttpsPortAcmeWarning.warningLines(traefikHttpsHostPort)) {
+      _logger.info(line);
+    }
   }
 
   void _logDockerNetworkNameWarnings(DockerNetworkNameBuildResult result) {
@@ -315,7 +365,7 @@ class TemplateGenerator {
   Future<void> _copyServerFiles(
     String templatesDir,
     Progress progress, {
-    required String dockerNetworkName,
+    required DeploymentStackConfig stackConfig,
   }) async {
     final serverDestination = path.join(
       projectDirectoryPath,
@@ -332,7 +382,7 @@ class TemplateGenerator {
         source: serverTemplatesDir,
         destination: serverDestination,
         progress: progress,
-        dockerNetworkName: dockerNetworkName,
+        stackConfig: stackConfig,
       );
     }
 
@@ -346,7 +396,7 @@ class TemplateGenerator {
         source: serverUpgradeTemplatesDir,
         destination: serverDestination,
         progress: progress,
-        dockerNetworkName: dockerNetworkName,
+        stackConfig: stackConfig,
       );
     }
   }
@@ -365,7 +415,7 @@ class TemplateGenerator {
     required String source,
     required String destination,
     required Progress progress,
-    required String dockerNetworkName,
+    required DeploymentStackConfig stackConfig,
   }) async {
     final sourceDir = Directory(source);
     if (!await sourceDir.exists()) {
@@ -423,7 +473,23 @@ class TemplateGenerator {
 
         content = content
             .replaceAll('{{ACME_EMAIL}}', userEmail)
-            .replaceAll('{{DOCKER_NETWORK_NAME}}', dockerNetworkName)
+            .replaceAll(
+              '{{DOCKER_NETWORK_NAME}}',
+              stackConfig.dockerNetworkName,
+            )
+            .replaceAll('{{TRAEFIK_INSTANCE}}', stackConfig.traefikInstance)
+            .replaceAll(
+              '{{TRAEFIK_HTTP_HOST_PORT}}',
+              '${stackConfig.traefikHttpHostPort}',
+            )
+            .replaceAll(
+              '{{TRAEFIK_HTTPS_HOST_PORT}}',
+              '${stackConfig.traefikHttpsHostPort}',
+            )
+            .replaceAll(
+              '{{POSTGRES_HOST_PORT}}',
+              '${stackConfig.postgresHostPort}',
+            )
             .replaceAll('projectname', projectDirectoryName);
 
         // Create parent directories if they don't exist
@@ -452,6 +518,31 @@ class TemplateGenerator {
     );
 
     return regex.hasMatch(fileName);
+  }
+
+  Future<int> _promptPort({
+    required String label,
+    required int defaultValue,
+  }) async {
+    while (true) {
+      final input = _logger.prompt(
+        '$label:',
+        defaultValue: '$defaultValue',
+      );
+
+      final port = int.tryParse(input.trim());
+
+      if (port == null) {
+        _logger.err('Please enter a valid port number.');
+        continue;
+      }
+
+      try {
+        return DeploymentStackConfig.validatePort(port, label: label);
+      } on ArgumentError {
+        _logger.err('Port must be between 1 and 65535.');
+      }
+    }
   }
 
   Future<String> _promptEmail() async {

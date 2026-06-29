@@ -216,8 +216,11 @@ By default, there will be two inbound rules: one for SSH (port 22) and one for I
 
 1. Click on **Add Rule**, name it HTTP, set the port to 80, and choose TCP as the protocol.
 2. Click on **Add Rule**, name it HTTPS, set the port to 443, and choose TCP as the protocol.
-3. In the "apply to" section, make sure your server is selected.
-4. Click **Create Firewall**.
+
+If you use custom Traefik host ports for a second stack (for example `8088` and `8443`), add matching firewall rules for those ports as well.
+
+1. In the "apply to" section, make sure your server is selected.
+2. Click **Create Firewall**.
 
 ## Preparing the domain
 
@@ -284,6 +287,7 @@ The following secrets configure Serverpod and the database:
 | SERVERPOD_PASSWORD_EMAIL_SECRET_HASH_PEPPER     | Same value as the `emailSecretHashPepper` key in your local `passwords.yaml` (production) — required when using `serverpod_auth_idp_server` with `JwtConfigFromPasswords()` |
 | SERVERPOD_PASSWORD_JWT_HMAC_SHA512_PRIVATE_KEY  | Same value as the `jwtHmacSha512PrivateKey` key in your local `passwords.yaml` (production) — required when using IdP JWT from passwords |
 | SERVERPOD_PASSWORD_JWT_REFRESH_TOKEN_HASH_PEPPER | Same value as the `jwtRefreshTokenHashPepper` key in your local `passwords.yaml` (production) — required when using IdP JWT from passwords |
+| CF_DNS_API_TOKEN                      | Cloudflare API token for Traefik ACME DNS challenge — **only** when using a non-standard HTTPS host port (see [Let's Encrypt with a custom HTTPS port](#lets-encrypt-with-a-custom-https-port)) |
 
 The production Docker image does not ship `passwords.yaml`. Serverpod reads secret values from environment variables named `SERVERPOD_PASSWORD_<key>`, where `<key>` matches the camelCase key from `passwords.yaml` (for example, `SERVERPOD_PASSWORD_jwtRefreshTokenHashPepper`). The generated workflow and `docker-compose.production.yaml` pass the three IdP/JWT-related keys above from GitHub Actions into the container.
 
@@ -311,7 +315,22 @@ The CLI will generate all necessary deployment files for your project.
    serverpod_vps
    ```
 
-4. When prompted, enter your email address for SSL certificate notifications.
+4. When prompted, enter your email address for SSL certificate notifications and the host ports for Traefik (HTTP/HTTPS) and Postgres. Use the defaults (`80`, `443`, `5432`) for the first stack on a VPS. Choose different ports for additional stacks on the same host.
+
+## Running multiple Serverpod stacks on one VPS
+
+Generated deployment files are isolated per project so multiple Serverpod apps can run on the same VPS:
+
+- **Docker network:** Each project gets its own network name (for example `my_app-network`).
+- **Traefik isolation:** Traefik only discovers containers labeled with a matching `serverpod_vps.instance` value (for example `my_app-vps`).
+- **Router names:** Traefik routers and services are prefixed with the project name (for example `my_app-api`, `my_app-web`).
+- **Host ports:** Each stack needs unique host ports for HTTP, HTTPS, and the local Postgres bind.
+
+When generating files for a second stack on the same VPS, choose unused host ports during the CLI prompts (for example HTTP `8080`, HTTPS `8443`, Postgres `55432`).
+
+If you choose a non-standard HTTPS host port, `serverpod_vps` prints a warning in the terminal. Follow the steps in [Let's Encrypt with a custom HTTPS port](#lets-encrypt-with-a-custom-https-port) so certificate issuance still works.
+
+After generation, verify the `ports` section in `docker-compose.production.yaml` reflects your chosen host bindings.
 
 ## Configuring SSL-certificates
 
@@ -319,10 +338,114 @@ All external connections are secured by Traefik through HTTPS. Traefik uses
 [Let's Encrypt](https://letsencrypt.org/) to automatically generate SSL
 certificates for your domains.
 
+The generated `docker-compose.production.yaml` uses the **TLS-ALPN challenge**
+(`tlschallenge`). That works when Traefik is bound to host port **443** (the
+default from the CLI prompts).
+
 If you need to change the email address that Let's Encrypt uses for certificate
 notifications, edit the email address in the `docker-compose.production.yaml`
 file. Open the file and modify the value of the parameter
 `certificatesresolvers.myresolver.acme.email`.
+
+## Let's Encrypt with a custom HTTPS port
+
+Use this when port `443` is already taken by another stack on the same VPS, or
+when you deliberately map Traefik HTTPS to another host port (for example
+`8443:443`).
+
+```mermaid
+flowchart LR
+  LE["Let's Encrypt"] -->|TLS challenge| P443["Public port 443"]
+  LE -->|DNS challenge| CF["Cloudflare DNS TXT record"]
+  P443 --> T443["Traefik on host 443"]
+  CF --> T8443["Traefik on host 8443"]
+```
+
+**TLS challenge (default):** Let's Encrypt connects to your domain on public port
+`443`. It does **not** follow a Docker mapping like `8443:443`. If Traefik only
+listens on host port `8443`, the default generated config will not obtain
+certificates.
+
+**DNS challenge (custom HTTPS port):** Let's Encrypt verifies domain ownership
+via a DNS TXT record. Traefik can run on any host HTTPS port. This requires your
+domains to be managed in **Cloudflare**.
+
+### 1. Switch Traefik to DNS challenge in `docker-compose.production.yaml`
+
+In the `traefik` service `command` section, replace the TLS challenge lines:
+
+```yaml
+# Remove:
+- "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+
+# Add:
+- "--certificatesresolvers.myresolver.acme.dnschallenge=true"
+- "--certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare"
+```
+
+Add the Cloudflare token to the `traefik` service `environment`:
+
+```yaml
+environment:
+  - CF_DNS_API_TOKEN
+```
+
+Example host port mapping for a second stack:
+
+```yaml
+ports:
+  - "8088:80"
+  - "8443:443"
+```
+
+### 2. Add the GitHub secret and deploy env var
+
+| Secret | Purpose |
+| ------ | ------- |
+| `CF_DNS_API_TOKEN` | Cloudflare API token with DNS edit permission for your zone |
+
+In `.github/workflows/deployment-docker.yml`, pass the token into the deploy step
+`env` (alongside your other variables):
+
+```yaml
+CF_DNS_API_TOKEN: ${{ secrets.CF_DNS_API_TOKEN }}
+```
+
+### 3. Align Serverpod public ports with your host binding
+
+The generated workflow sets `SERVERPOD_*_PUBLIC_PORT` to `443`. Change these to
+your HTTPS host port (for example `8443`):
+
+```yaml
+SERVERPOD_API_SERVER_PUBLIC_PORT: 8443
+SERVERPOD_INSIGHTS_SERVER_PUBLIC_PORT: 8443
+SERVERPOD_WEB_SERVER_PUBLIC_PORT: 8443
+```
+
+In `config/production.yaml`, set `publicPort` on all three servers to the same
+value:
+
+```yaml
+apiServer:
+  publicPort: 8443
+insightsServer:
+  publicPort: 8443
+webServer:
+  publicPort: 8443
+```
+
+### 4. Update clients and OAuth redirect URIs
+
+When `publicPort` is not `443`, URLs must include the port explicitly:
+
+- Flutter / client: `https://api.my-domain.com:8443/`
+- OAuth callbacks (example): `https://web.my-domain.com:8443/auth/callback`
+
+### 5. Open the custom ports in your firewall
+
+Add inbound TCP rules for the HTTP and HTTPS host ports you chose (for example
+`8088` and `8443`), in addition to or instead of `80`/`443` depending on your
+setup.
 
 ## Configuring the GitHub-Action
 
@@ -349,8 +472,12 @@ secrets matches the one in your local `passwords.yaml` file for production.
 ## Connecting your Flutter client
 
 To connect with your generated client, use the domain you set up in the DNS.
-Make sure to use HTTPS without any port numbers (e.g.,
-`https://api.my-domain.com`).
+
+- **Standard HTTPS (port 443):** `https://api.my-domain.com`
+- **Custom HTTPS host port:** include the port in the URL, for example
+  `https://api.my-domain.com:8443/` — and match `publicPort` in
+  `production.yaml` and `SERVERPOD_*_PUBLIC_PORT` in the deploy workflow (see
+  [Let's Encrypt with a custom HTTPS port](#lets-encrypt-with-a-custom-https-port)).
 
 ## Connecting to the Database using DBeaver
 
@@ -372,7 +499,7 @@ following example:
 7. Return to the **Main** tab.
 8. Set the following values:
    - **Host:** localhost
-   - **Port:** 5432
+   - **Port:** The Postgres host port from your `docker-compose.production.yaml` (default `5432`, or the value you chose when running `serverpod_vps`)
    - **Database:** The database name you set in the [repository secrets](#adding-the-secrets-to-the-repository)
    - **User name:** The database user you set in the [repository secrets](#adding-the-secrets-to-the-repository)
    - **Password:** The database password you set in the [repository secrets](#adding-the-secrets-to-the-repository)

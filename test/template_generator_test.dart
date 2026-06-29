@@ -88,6 +88,81 @@ void main() {
     });
 
     test(
+      'generates multi-stack safe traefik and port settings in compose file',
+      () async {
+        const testDirName = 'stack_safe_project';
+        const testEmail = 'ssl@example.com';
+
+        final testDir = Directory(path.join(tempDir.path, testDirName))
+          ..createSync();
+
+        Directory(path.join(testDir.path, '${testDirName}_server'))
+            .createSync();
+        Directory(path.join(testDir.path, '${testDirName}_client'))
+            .createSync();
+
+        final originalDir = Directory.current;
+        Directory.current = testDir.path;
+
+        try {
+          await generator.generateDeploymentFilesForTesting(
+            email: testEmail,
+            traefikHttpHostPort: 8080,
+            traefikHttpsHostPort: 8443,
+            postgresHostPort: 55432,
+          );
+
+          final composeContent = File(
+            path.join(
+              testDir.path,
+              '${testDirName}_server',
+              'docker-compose.production.yaml',
+            ),
+          ).readAsStringSync();
+
+          expect(
+            composeContent,
+            contains('providers.docker.exposedbydefault=false'),
+          );
+          expect(
+            composeContent,
+            contains(
+              'providers.docker.constraints=Label(`serverpod_vps.instance`,`$testDirName-vps`)',
+            ),
+          );
+          expect(
+            composeContent,
+            contains('serverpod_vps.instance=$testDirName-vps'),
+          );
+          expect(composeContent, isNot(contains('traefik.instance=')));
+          expect(
+            composeContent,
+            contains('traefik.http.routers.$testDirName-api.rule'),
+          );
+          expect(
+            composeContent,
+            contains('traefik.http.routers.$testDirName-web.rule'),
+          );
+          expect(
+            composeContent,
+            contains('traefik.http.routers.$testDirName-insights.rule'),
+          );
+          expect(
+            composeContent,
+            isNot(contains('traefik.http.routers.api.rule')),
+          );
+          expect(composeContent, contains('"8080:80"'));
+          expect(composeContent, contains('"8443:443"'));
+          expect(composeContent, contains('127.0.0.1:55432:5432'));
+          expect(composeContent, isNot(contains('{{TRAEFIK_INSTANCE}}')));
+          expect(composeContent, isNot(contains('{{TRAEFIK_HTTP_HOST_PORT}}')));
+        } finally {
+          Directory.current = originalDir;
+        }
+      },
+    );
+
+    test(
       'replaces projectname and email placeholders in generated files',
       () async {
         const testDirName = 'placeholder_test_project';
