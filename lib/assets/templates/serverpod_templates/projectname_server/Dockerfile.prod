@@ -1,4 +1,39 @@
-FROM dart:stable AS build
+# Build from the project root with:
+# docker build -f projectname_server/Dockerfile.prod .
+
+FROM ghcr.io/cirruslabs/flutter:stable AS flutter_build
+
+# Accept the GITHUB_PAT and GITHUB_USER as an argument
+ARG GITHUB_PAT
+ARG GITHUB_USER
+
+WORKDIR /app
+COPY . .
+
+RUN if [ -n "$GITHUB_PAT" ] && [ -n "$GITHUB_USER" ]; then \
+    echo "Configuring Git to use provided GitHub token..."; \
+    mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts; \
+    git config --global credential.helper 'store'; \
+    echo "url=https://github.com/.insteadOf git://github.com/" >> ~/.gitconfig; \
+    echo "https://$GITHUB_USER:$GITHUB_PAT@github.com" > ~/.git-credentials; \
+    else \
+    echo "No GitHub token provided. Skipping Git configuration..."; \
+    fi
+
+RUN if [ -d projectname_client ] && [ -d projectname_flutter ]; then \
+    cd projectname_client && dart pub get; \
+    cd ../projectname_flutter && flutter pub get; \
+    flutter build web --release --base-href /app/; \
+    mkdir -p /app/flutter_web; \
+    cp -R build/web/. /app/flutter_web/; \
+    else \
+    echo "No Flutter web app found. Skipping Flutter web build."; \
+    mkdir -p /app/flutter_web; \
+    touch /app/flutter_web/.serverpod_vps_no_flutter_web; \
+    fi
+
+# Build stage
+FROM dart:3.10.3 AS build
 
 # Accept the GITHUB_PAT and GITHUB_USER as an argument
 ARG GITHUB_PAT
@@ -19,21 +54,44 @@ RUN if [ -n "$GITHUB_PAT" ] && [ -n "$GITHUB_USER" ]; then \
     echo "No GitHub token provided. Skipping Git configuration..."; \
     fi
 
+WORKDIR /app/projectname_server
 RUN dart pub get
-RUN dart compile exe bin/main.dart -o bin/server
 
+# Compile the server executable.
+RUN dart build cli --target bin/main.dart --output build
+RUN mv build/bundle/bin/main build/bundle/bin/server
+
+# Add a fallback for the copy of possibly missing directories.
+RUN mkdir -p config web migrations
+COPY --from=flutter_build /app/flutter_web web/app
+RUN if [ -f web/app/.serverpod_vps_no_flutter_web ]; then rm -rf web/app; fi
+
+# Final stage
 FROM alpine:latest
+WORKDIR /app
 
-# Correcting the source directory for runtime dependencies
+# Environment variables
+ENV runmode=production
+ENV serverid=default
+ENV logging=normal
+ENV role=monolith
+
+# Copy runtime dependencies
 COPY --from=build /runtime/ /
-COPY --from=build /app/bin/server server
-COPY --from=build /app/config/ config/
-COPY --from=build /app/web/ web/
-COPY --from=build /app/migrations/ migrations/
+
+# Copy compiled server executable and native libraries
+COPY --from=build /app/projectname_server/build/bundle/ ./
+
+# Copy configuration files and resources
+COPY --from=build /app/projectname_server/config/ config/
+COPY --from=build /app/projectname_server/web/ web/
+COPY --from=build /app/projectname_server/migrations/ migrations/
+
+# This file is required to enable the endpoint log filter in Insights.
+COPY --from=build /app/projectname_server/lib/src/generated/protocol.yaml lib/src/generated/protocol.yaml
 
 EXPOSE 8080
 EXPOSE 8081
 EXPOSE 8082
 
-ENTRYPOINT ["/server"]
-CMD ["--mode", "production", "--server-id", "default", "--logging", "normal", "--role", "monolith"]
+ENTRYPOINT ./bin/server --mode=$runmode --server-id=$serverid --logging=$logging --role=$role

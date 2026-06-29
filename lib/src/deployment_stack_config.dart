@@ -8,6 +8,7 @@ class DeploymentStackConfig {
     required this.traefikHttpHostPort,
     required this.traefikHttpsHostPort,
     required this.postgresHostPort,
+    required this.postgresImage,
   });
 
   final String dockerNetworkName;
@@ -15,6 +16,7 @@ class DeploymentStackConfig {
   final int traefikHttpHostPort;
   final int traefikHttpsHostPort;
   final int postgresHostPort;
+  final String postgresImage;
 
   /// Builds stack settings from a project directory name.
   static DeploymentStackConfig fromProjectName(
@@ -22,6 +24,7 @@ class DeploymentStackConfig {
     int traefikHttpHostPort = defaultTraefikHttpHostPort,
     int traefikHttpsHostPort = defaultTraefikHttpsHostPort,
     int postgresHostPort = defaultPostgresHostPort,
+    String postgresImage = defaultPostgresImage,
   }) {
     final networkResult = DockerNetworkName.buildFromProjectName(projectName);
     final stackSlug = networkResult.networkName.replaceFirst(
@@ -44,12 +47,14 @@ class DeploymentStackConfig {
         postgresHostPort,
         label: 'Postgres host port',
       ),
+      postgresImage: postgresImage,
     );
   }
 
   static const int defaultTraefikHttpHostPort = 80;
   static const int defaultTraefikHttpsHostPort = 443;
   static const int defaultPostgresHostPort = 5432;
+  static const String defaultPostgresImage = 'pgvector/pgvector:pg16';
 
   /// Validates a TCP/UDP port number for Docker host bindings.
   static int validatePort(int port, {required String label}) {

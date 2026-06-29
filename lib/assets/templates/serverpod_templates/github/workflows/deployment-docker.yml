@@ -56,7 +56,7 @@ jobs:
           build-args: |
             GITHUB_PAT=${{ secrets.PAT_GITHUB }}
             GITHUB_USER=${{ secrets.PAT_USER_GITHUB }}
-          context: ./projectname_server
+          context: .
           file: ./projectname_server/Dockerfile.prod
           push: true
           # TODO This same value is used in docker-compose.production.yaml too,
