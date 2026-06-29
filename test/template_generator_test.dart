@@ -163,6 +163,161 @@ void main() {
     );
 
     test(
+      'uses postgres image from existing docker compose file',
+      () async {
+        const testDirName = 'postgres_image_project';
+        const testEmail = 'ssl@example.com';
+        const postgresImage = 'postgis/postgis:16-3.4';
+
+        final testDir = Directory(path.join(tempDir.path, testDirName))
+          ..createSync();
+
+        final serverDir = Directory(
+          path.join(testDir.path, '${testDirName}_server'),
+        )..createSync();
+        Directory(path.join(testDir.path, '${testDirName}_client'))
+            .createSync();
+
+        File(path.join(serverDir.path, 'docker-compose.yaml'))
+            .writeAsStringSync('''
+services:
+  postgres:
+    image: $postgresImage
+    ports:
+      - "8090:5432"
+''');
+
+        final originalDir = Directory.current;
+        Directory.current = testDir.path;
+
+        try {
+          await generator.generateDeploymentFilesForTesting(email: testEmail);
+
+          final composeContent = File(
+            path.join(
+              testDir.path,
+              '${testDirName}_server',
+              'docker-compose.production.yaml',
+            ),
+          ).readAsStringSync();
+
+          expect(composeContent, contains('image: $postgresImage'));
+          expect(composeContent, isNot(contains('{{POSTGRES_IMAGE}}')));
+          expect(composeContent, isNot(contains('image: postgres:17')));
+        } finally {
+          Directory.current = originalDir;
+        }
+      },
+    );
+
+    test(
+      'does not replace projectname inside detected postgres image',
+      () async {
+        const testDirName = 'literal_replacement_project';
+        const testEmail = 'ssl@example.com';
+        const postgresImage = 'ghcr.io/acme/projectname-postgres:16';
+
+        final testDir = Directory(path.join(tempDir.path, testDirName))
+          ..createSync();
+
+        final serverDir = Directory(
+          path.join(testDir.path, '${testDirName}_server'),
+        )..createSync();
+        Directory(path.join(testDir.path, '${testDirName}_client'))
+            .createSync();
+
+        File(path.join(serverDir.path, 'docker-compose.yaml'))
+            .writeAsStringSync('''
+services:
+  postgres:
+    image: $postgresImage
+''');
+
+        final originalDir = Directory.current;
+        Directory.current = testDir.path;
+
+        try {
+          await generator.generateDeploymentFilesForTesting(email: testEmail);
+
+          final composeContent = File(
+            path.join(
+              testDir.path,
+              '${testDirName}_server',
+              'docker-compose.production.yaml',
+            ),
+          ).readAsStringSync();
+
+          expect(composeContent, contains('image: $postgresImage'));
+          expect(
+            composeContent,
+            isNot(contains('ghcr.io/acme/$testDirName-postgres:16')),
+          );
+        } finally {
+          Directory.current = originalDir;
+        }
+      },
+    );
+
+    test(
+      'defaults to current Serverpod postgres image when compose is missing',
+      () async {
+        const testDirName = 'default_postgres_image_project';
+        const testEmail = 'ssl@example.com';
+
+        final testDir = Directory(path.join(tempDir.path, testDirName))
+          ..createSync();
+
+        Directory(path.join(testDir.path, '${testDirName}_server'))
+            .createSync();
+        Directory(path.join(testDir.path, '${testDirName}_client'))
+            .createSync();
+
+        final originalDir = Directory.current;
+        Directory.current = testDir.path;
+
+        try {
+          await generator.generateDeploymentFilesForTesting(email: testEmail);
+
+          final composeContent = File(
+            path.join(
+              testDir.path,
+              '${testDirName}_server',
+              'docker-compose.production.yaml',
+            ),
+          ).readAsStringSync();
+
+          expect(
+            composeContent,
+            contains(
+              'image: ${DeploymentStackConfig.defaultPostgresImage}',
+            ),
+          );
+        } finally {
+          Directory.current = originalDir;
+        }
+      },
+    );
+
+    test(
+      'detects postgres image from compose content',
+      () {
+        const composeContent = '''
+services:
+  postgres_test:
+    image: postgres:15
+  postgres:
+    image: "pgvector/pgvector:pg16"
+''';
+
+        final postgresImage = generator.detectPostgresImageFromComposeContent(
+          composeContent,
+        );
+
+        expect(postgresImage, equals('pgvector/pgvector:pg16'));
+      },
+    );
+
+    test(
       'replaces projectname and email placeholders in generated files',
       () async {
         const testDirName = 'placeholder_test_project';
@@ -458,6 +613,60 @@ void main() {
 
     test('builds Docker image for linux/arm64', () {
       expect(workflowTemplate, contains('platforms: linux/arm64'));
+    });
+
+    test('builds Docker image from project root context', () {
+      expect(workflowTemplate, contains('context: .'));
+      expect(
+        workflowTemplate,
+        contains('file: ./projectname_server/Dockerfile.prod'),
+      );
+      expect(
+        workflowTemplate,
+        isNot(contains('context: ./projectname_server')),
+      );
+    });
+  });
+
+  group('production Dockerfile template', () {
+    late String dockerfileTemplate;
+
+    setUp(() {
+      dockerfileTemplate = File(
+        path.join(
+          Directory.current.path,
+          'lib',
+          'assets',
+          'templates',
+          'serverpod_templates',
+          'projectname_server',
+          'Dockerfile.prod',
+        ),
+      ).readAsStringSync();
+    });
+
+    test('builds and copies Flutter web app into server web app directory', () {
+      expect(
+        dockerfileTemplate,
+        contains('flutter build web --release --base-href /app/'),
+      );
+      expect(dockerfileTemplate, contains('/app/flutter_web'));
+      expect(dockerfileTemplate, contains('web/app'));
+    });
+
+    test('uses current Serverpod server build bundle layout', () {
+      expect(dockerfileTemplate, contains('dart build cli'));
+      expect(
+        dockerfileTemplate,
+        contains('WORKDIR /app/projectname_server\nRUN dart pub get'),
+      );
+      expect(
+        dockerfileTemplate,
+        contains(
+          'lib/src/generated/protocol.yaml lib/src/generated/protocol.yaml',
+        ),
+      );
+      expect(dockerfileTemplate, contains('ENTRYPOINT ./bin/server'));
     });
   });
 }

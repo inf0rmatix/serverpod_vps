@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
+import 'package:yaml/yaml.dart';
 
 import 'deployment_stack_config.dart';
 import 'docker_network_name.dart';
@@ -309,6 +310,7 @@ class TemplateGenerator {
       traefikHttpHostPort: traefikHttpHostPort,
       traefikHttpsHostPort: traefikHttpsHostPort,
       postgresHostPort: postgresHostPort,
+      postgresImage: await detectPostgresImage(),
     );
 
     // Copy GitHub workflows
@@ -359,6 +361,54 @@ class TemplateGenerator {
         'Docker network names must be 63 characters or fewer.',
       );
     }
+  }
+
+  @visibleForTesting
+  Future<String> detectPostgresImage() async {
+    final composeFile = File(
+      path.join(
+        projectDirectoryPath,
+        '${projectDirectoryName}_server',
+        'docker-compose.yaml',
+      ),
+    );
+
+    if (!await composeFile.exists()) {
+      return DeploymentStackConfig.defaultPostgresImage;
+    }
+
+    final composeContent = await composeFile.readAsString();
+
+    return detectPostgresImageFromComposeContent(composeContent);
+  }
+
+  @visibleForTesting
+  String detectPostgresImageFromComposeContent(String composeContent) {
+    final document = loadYaml(composeContent);
+
+    if (document is! YamlMap) {
+      return DeploymentStackConfig.defaultPostgresImage;
+    }
+
+    final services = document['services'];
+
+    if (services is! YamlMap) {
+      return DeploymentStackConfig.defaultPostgresImage;
+    }
+
+    final postgres = services['postgres'];
+
+    if (postgres is! YamlMap) {
+      return DeploymentStackConfig.defaultPostgresImage;
+    }
+
+    final image = postgres['image'];
+
+    if (image is! String || image.isEmpty) {
+      return DeploymentStackConfig.defaultPostgresImage;
+    }
+
+    return image;
   }
 
   /// Copy server-specific files
@@ -472,6 +522,7 @@ class TemplateGenerator {
         var content = await entity.readAsString();
 
         content = content
+            .replaceAll('projectname', projectDirectoryName)
             .replaceAll('{{ACME_EMAIL}}', userEmail)
             .replaceAll(
               '{{DOCKER_NETWORK_NAME}}',
@@ -490,7 +541,7 @@ class TemplateGenerator {
               '{{POSTGRES_HOST_PORT}}',
               '${stackConfig.postgresHostPort}',
             )
-            .replaceAll('projectname', projectDirectoryName);
+            .replaceAll('{{POSTGRES_IMAGE}}', stackConfig.postgresImage);
 
         // Create parent directories if they don't exist
         await Directory(path.dirname(destPath)).create(recursive: true);
