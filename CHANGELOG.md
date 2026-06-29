@@ -1,5 +1,14 @@
 <!-- markdownlint-disable first-line-heading -->
 
+## 1.0.7
+
+- Make generated VPS stacks multi-stack safe on a single host
+- Isolate Traefik per project with `exposedbydefault=false`, `serverpod_vps.instance`, and project-prefixed router/service labels
+- Prompt for Traefik HTTP/HTTPS and Postgres host ports during file generation
+- Warn when a non-standard HTTPS host port is chosen and print DNS challenge steps for Let's Encrypt
+- Document running multiple stacks on one VPS, custom HTTPS ports, and Cloudflare DNS challenge setup for ACME
+- **Note:** Existing deployments should re-run `serverpod_vps` or manually update `docker-compose.production.yaml` for Traefik isolation and port settings
+
 ## 1.0.6
 
 - Use a project-specific Docker network name via the `{{DOCKER_NETWORK_NAME}}` placeholder in generated `docker-compose.production.yaml` instead of the hardcoded `serverpod-network`
