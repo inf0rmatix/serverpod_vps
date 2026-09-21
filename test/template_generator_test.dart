@@ -654,6 +654,23 @@ services:
       expect(dockerfileTemplate, contains('web/app'));
     });
 
+    test('includes migration flag and forwards startup arguments', () {
+      final composeTemplate = File(
+        path.join(
+          Directory.current.path,
+          'lib',
+          'assets',
+          'templates',
+          'serverpod_templates',
+          'projectname_server_upgrade',
+          'docker-compose.production.yaml',
+        ),
+      ).readAsStringSync();
+
+      expect(composeTemplate, contains('--apply-migrations'));
+      expect(dockerfileTemplate, contains(r'\"$@\"'));
+    });
+
     test('uses current Serverpod server build bundle layout', () {
       expect(dockerfileTemplate, contains('dart build cli'));
       expect(
@@ -666,7 +683,8 @@ services:
           'lib/src/generated/protocol.yaml lib/src/generated/protocol.yaml',
         ),
       );
-      expect(dockerfileTemplate, contains('ENTRYPOINT ./bin/server'));
+      expect(dockerfileTemplate, contains('exec ./bin/server'));
+      expect(dockerfileTemplate, contains('FROM dart:3.12.2 AS build'));
     });
   });
 }

@@ -1,7 +1,12 @@
 # Build from the project root with:
 # docker build -f projectname_server/Dockerfile.prod .
 
-FROM ghcr.io/cirruslabs/flutter:stable AS flutter_build
+FROM ghcr.io/cirruslabs/flutter:3.44.0 AS flutter_build
+
+# The published image predates Serverpod 4's minimum Flutter/Dart patch release.
+RUN git -C "$FLUTTER_HOME" fetch --depth 1 origin tag 3.44.4 \
+    && git -C "$FLUTTER_HOME" checkout --detach 3.44.4 \
+    && flutter precache --web
 
 # Accept the GITHUB_PAT and GITHUB_USER as an argument
 ARG GITHUB_PAT
@@ -20,7 +25,7 @@ RUN if [ -n "$GITHUB_PAT" ] && [ -n "$GITHUB_USER" ]; then \
     echo "No GitHub token provided. Skipping Git configuration..."; \
     fi
 
-RUN if [ -d projectname_client ] && [ -d projectname_flutter ]; then \
+RUN set -eu; if [ -d projectname_client ] && [ -d projectname_flutter ]; then \
     cd projectname_client && dart pub get; \
     cd ../projectname_flutter && flutter pub get; \
     flutter build web --release --base-href /app/; \
@@ -33,7 +38,7 @@ RUN if [ -d projectname_client ] && [ -d projectname_flutter ]; then \
     fi
 
 # Build stage
-FROM dart:3.10.3 AS build
+FROM dart:3.12.2 AS build
 
 # Accept the GITHUB_PAT and GITHUB_USER as an argument
 ARG GITHUB_PAT
@@ -52,6 +57,18 @@ RUN if [ -n "$GITHUB_PAT" ] && [ -n "$GITHUB_USER" ]; then \
     echo "https://$GITHUB_USER:$GITHUB_PAT@github.com" > ~/.git-credentials; \
     else \
     echo "No GitHub token provided. Skipping Git configuration..."; \
+    fi
+
+# Serverpod workspaces also contain Flutter packages. Resolve only the server
+# in this Dart-only stage, retaining the root lockfile and copied source files.
+# Older projects without workspace resolution keep their package-local setup.
+RUN if grep -Eq '^resolution:[[:space:]]*workspace([[:space:]]|$)' projectname_server/pubspec.yaml; then \
+    printf '%s\n' \
+      'name: deployment_workspace' \
+      'environment:' \
+      '  sdk: ^3.12.2' \
+      'workspace:' \
+      '  - projectname_server' > pubspec.yaml; \
     fi
 
 WORKDIR /app/projectname_server
@@ -94,4 +111,4 @@ EXPOSE 8080
 EXPOSE 8081
 EXPOSE 8082
 
-ENTRYPOINT ./bin/server --mode=$runmode --server-id=$serverid --logging=$logging --role=$role
+ENTRYPOINT ["/bin/sh", "-c", "exec ./bin/server --mode=\"$runmode\" --server-id=\"$serverid\" --logging=\"$logging\" --role=\"$role\" \"$@\"", "serverpod"]

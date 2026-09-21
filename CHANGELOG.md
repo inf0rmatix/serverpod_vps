@@ -1,5 +1,12 @@
 <!-- markdownlint-disable first-line-heading -->
 
+## 1.0.8
+
+- Update production builds for Serverpod 4 with Dart 3.12.2 and Flutter 3.44.4.
+- Resolve server dependencies separately from Flutter workspace packages.
+- Forward container startup arguments so Compose can apply database migrations.
+- Stop the Docker build when the Flutter web build fails.
+
 ## 1.0.7
 
 - Make generated VPS stacks multi-stack safe on a single host
