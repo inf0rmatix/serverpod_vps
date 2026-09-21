@@ -1,6 +1,6 @@
 <!-- markdownlint-disable first-line-heading -->
 
-## Unreleased
+## 1.0.8
 
 - Update production builds for Serverpod 4 with Dart 3.12.2 and Flutter 3.44.4.
 - Resolve server dependencies separately from Flutter workspace packages.
