@@ -317,6 +317,14 @@ The CLI will generate all necessary deployment files for your project.
 
 4. When prompted, enter your email address for SSL certificate notifications and the host ports for Traefik (HTTP/HTTPS) and Postgres. Use the defaults (`80`, `443`, `5432`) for the first stack on a VPS. Choose different ports for additional stacks on the same host.
 
+### Upgrading a deployment to Serverpod 4
+
+Update your app using the [Serverpod 4 upgrade guide](https://docs.serverpod.dev/upgrading/upgrade-to-four), including code generation and the new database migration. Then update the deployed project's `Dockerfile.prod` from this template and rebuild the image. Updating the CLI alone does not change files in existing projects.
+
+The template uses Dart 3.12.2 and Flutter 3.44.4. The Flutter image is upgraded to that patch release during the build because the published image is still on 3.44.0. The server build resolves a workspace containing only the server package and keeps the existing root lockfile as its dependency baseline. If your server depends on additional local workspace packages, include those packages in the Dockerfile's build workspace too.
+
+The container forwards the Compose startup arguments, including `--apply-migrations`, to Serverpod. Generate the migration before building; starting the container applies the files included in the image.
+
 ## Running multiple Serverpod stacks on one VPS
 
 Generated deployment files are isolated per project so multiple Serverpod apps can run on the same VPS:

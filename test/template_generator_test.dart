@@ -666,7 +666,8 @@ services:
           'lib/src/generated/protocol.yaml lib/src/generated/protocol.yaml',
         ),
       );
-      expect(dockerfileTemplate, contains('ENTRYPOINT ./bin/server'));
+      expect(dockerfileTemplate, contains('exec ./bin/server'));
+      expect(dockerfileTemplate, contains('FROM dart:3.12.2 AS build'));
     });
   });
 }
